@@ -7,6 +7,9 @@ from ecdsa import SigningKey, VerifyingKey, SECP256k1
 #pip install pycryptodome
 from Crypto.Hash import keccak
 
+#pip install secp256k1prp
+from secp256k1prp import PrivateKey, PublicKey
+
 import binascii
 import threading
 import time
@@ -17,14 +20,14 @@ from time import sleep
 Blockchain = []
 class Block:
     def __init__(self, block_index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
-        self.block_index = block_index
-        self.block_hash = block_hash
-        self.previous_block = previous_block
-        self.merkle_root = merkle_root
-        self.difficluty = difficulty
-        self.timestamp = timestamp
-        self.nonce = nonce
-        self.tx_set = tx_set
+        self.block_index = block_index          #int
+        self.block_hash = block_hash            #string
+        self.previous_block = previous_block    #string
+        self.merkle_root = merkle_root          #string
+        self.difficluty = difficulty            #int
+        self.timestamp = timestamp              #float
+        self.nonce = nonce                      #int
+        self.tx_set = tx_set                    #list[Transaction]
 
     def isValid(self):
 
@@ -51,13 +54,13 @@ class Block:
 #input / output
 class Vin:
     def __init__(self, tx_id, index, unlock):
-        self.tx_id = tx_id
-        self.index = index
-        self.unlock = unlock
+        self.tx_id = tx_id                      #string
+        self.index = index                      #int
+        self.unlock = unlock                    #class '_cffi_backend.CDataOwn'
 class Vout:
     def __init__(self, value, lock):
-        self.value = value
-        self.lock = lock
+        self.value = value                      #float
+        self.lock = lock                        #class 'secp256k1prp.PublicKey'
 
 #Transaction
 # memoryPool : 아직 블록에 포함되지 않은 트랜잭션 리스트
@@ -66,16 +69,19 @@ memoryPool = []
 orphanPool = []
 class Transaction:
     def __init__(self, tx_id, in_num, vin, out_num, vout):
-        self.tx_id = tx_id
-        self.in_num = in_num
-        self.vin = vin
-        self.out_num = out_num
-        self.vout = vout
+        self.tx_id = tx_id                      #string
+        self.in_num = in_num                    #int
+        self.vin = vin                          #list[Vin]
+        self.out_num = out_num                  #int
+        self.vout = vout                        #list[Vout]
         memoryPool.append(self)
 
     #CLI로부터 transaction 생성 명령을 받았을 때(받는 사람, 보내는 양, 수수료 입력)
     def generate(self, receiver, amount, commission):
-        global publicKey, privateKey
+        #공개키 / 개인키 다시 구현
+        global privateKey, publicKey
+
+
         #DB로부터 myUTXOset 가져와야 함
         sum = 0
         tx_id = ""
@@ -88,6 +94,7 @@ class Transaction:
 
         #Gathering from myUTXOset
         for output in myUTXOset :
+            # 공개키 / 개인키 다시 구현
             if(output.lock != publicKey):
                 #myUTXOset과 DB로부터 output 제거해야함
                 continue
@@ -106,7 +113,10 @@ class Transaction:
             sum += output.value
             in_counter += 1
             # 자신의 개인키로 서명한 unlock 생성
-            vin.append(Vin(output.txOutid, output.index, privateKey.sign(output.txOutid + str(output.index))))
+
+            # 공개키 / 개인키 다시 구현
+            vin.append(Vin(output.txOutid, output.index, privateKey.ecdsa_sign(bytes(bytearray.fromhex(output.txOutid), raw=False))))
+
             # myUTXOset과 DB로부터 output 제거해야함
             myUTXOset.pop(output)
         vout.append(Vout(amount, receiver))
@@ -186,25 +196,47 @@ UTXOset = []
 myUTXOset = []
 class UTXO:
     def __init__(self, txOutid, index, address, amount):
-        self.txOutid = txOutid
-        self.index = index
-        self.address = address
-        self.amount = amount
+        self.txOutid = txOutid                  #string
+        self.index = index                      #int
+        self.address = address                  #class 'secp256k1prp.PublicKey'
+        self.amount = amount                    #float
 
 #Block class의 method로 바꿔야 함(수정 요망)
 def mining(): #내용 추가
-    global miningFlag
+    global miningFlag, privateKey, publicKey
     while(miningFlag):
         block_index = len(Blockchain)+1
         previous_block = Blockchain[-1].block_hash
+        tx_set = []
 
         #아직 난이도는 고정값 사용, 지난 6개의 블록을 생성하는데 걸린 시간으로 다시 계산해야 함
+        #이유는 모르겠지만 자꾸 keccak_hash(256bit)이 512bit으로 나온다
         difficulty = 0x0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 
         #transaction의 priority는 아직 구현 못함
-        #Block에 들어가는 transactino의 최대 크기는 아직 4개로 고정, 수정해야 함
+        #Block에 들어가는 transactino의 최대 크기는 아직 3개로 고정, 수정해야 함
+
         #DB의 memoryPool에서 가져와야 함
-        tx_set = memoryPool[:4]
+        tx_set = memoryPool[:3]
+
+        #수수료 계산(모든 input의 value - 모든 output의 value)
+        #input의 value 구하기 위해서는 UTXOset을 검색해야함(추후에 추가 예졍)
+        #for tx in tx_set:
+
+        #고정된 블록 보상인 12.5BTC만 일단 지급
+
+        #coinbase transaction 생성
+        in_num = 0
+        vin = []
+        out_num = 1
+        vout = [Vout(12.5, publicKey)]
+        SumString = str(in_num) + str(vin) + str(out_num) + str(vout)
+        keccak_hash = keccak.new(digest_bits=256)
+        keccak_hash.update(SumString.encode('ascii'))
+        tx_id = str(keccak_hash)
+
+        tx_set.insert(0, Transaction(tx_id, in_num, vin, out_num, vout))
+
 
         #Merkle root 생성
         #일단 tree를 만들지 않고, 모든 transaction의 hash를 다시 hash한 값을 merkle root로 간단하게 만듦, 수정 요망
@@ -217,6 +249,16 @@ def mining(): #내용 추가
 
         #PoW 호출
         targetNonce = proofOfWork(blockData, difficulty)
+
+        if(targetNonce == False):
+            print('Failed to get golden nonce')
+            continue
+
+        #채굴에 성공하면, 해당 블록에 포함되는transaction과 utxo를 memoryPool과 UTXOset에서 제거한다
+        del memoryPool[:len(tx_set)]
+        #del UTXOset[]
+        #del myUTXOset[]
+
         keccak_hash = keccak.new(digest_bits=256)
         keccak_hash.update(blockData.encode('ascii'))
         keccak_hash.update(bytes(targetNonce))
@@ -237,10 +279,11 @@ def proofOfWork(blockData, targetValue):
         keccak_hash = keccak.new(digest_bits=256)
         keccak_hash.update(blockData.encode(('ascii')))
         keccak_hash.update(bytes(nonce))
-        if(int('0x'+keccak_hash.hexdigest(), 0) < targetValue):
+        if(int('0x' + keccak_hash.hexdigest(), 0) < targetValue):
             print('target nonce :'+ str(nonce))
             return nonce
         nonce+=1
+    return False
 
 #genesis block 생성, 추후 수정 필요
 #파일에서 genesis block을 읽어오는 방향으로 수정(e.g /block/genesis.json)
@@ -252,17 +295,25 @@ cmd = ""
 
 #웹소켓(혹은 다른 방식으로)으로 연결된 노드들에게 transaction과 block 주고받아야 함
 
-
-#주소 및 개인키 생성 구현해야함(아직 랜덤 주소생성만 가능)
-#https://stackoverflow.com/questions/34451214/how-to-sign-and-verify-signature-with-ecdsa-in-python
-#https://pycryptodome.readthedocs.io/en/latest/src/examples.html 참고하여 다시 바꾸기
-
-privateKey = SigningKey.generate(curve=SECP256k1)
-publicKey = privateKey.get_verifying_key()
-
 #임시로 genesis block 생성
 #추후 삭제
 getGenesisBlock()
+
+#private / public key 생성
+#https://github.com/ludbb/secp256k1-py
+passphrase = input('Enter your passphrase for private key : ')
+keccak_hash = keccak.new(digest_bits=256)
+keccak_hash.update(passphrase.encode('ascii'))
+passphrase = keccak_hash.hexdigest()
+privateKey = PrivateKey(bytes(bytearray.fromhex(passphrase)), raw=True)
+publicKey = privateKey.pubkey
+
+print('My public key :')
+print(bytes(bytearray(privateKey.pubkey.serialize(compressed=False))).hex())
+print('My private key :')
+print(bytes(bytearray(privateKey.private_key)).hex())
+
+newPubkey = PrivateKey.pubkey()
 
 while(cmd != 'exit'):
     cmd = input('>>')
@@ -278,13 +329,21 @@ while(cmd != 'exit'):
         miningThread.start()
 
     elif(cmd == 'mine.stop'):
-        mininFlag = False
+        miningFlag = False
         print('Mining work stops')
 
     elif(cmd == 'newTransaction'):
-        sender = input('Address of receiver : ')
-        amount = input('BTC : ')
-        commission = input('Commission : ')
+        receiver = input('Address of receiver : ')
+        #receiver의 주소에 대응하는 'secp256k1prp.PublicKey' "오브젝트"를 넘겨야함
+        #밑의 코드 참조
+        # def _update_public_key(self):
+        #public_key = self._gen_public_key(self.private_key)
+        #self.pubkey = PublicKey(
+        #    public_key, raw=False, ctx=self.ctx, flags=self.flags)
+
+        amount = int(input('BTC : '))
+        commission = int(input('Commission : '))
+        Transaction(0, 0, [], 0, []).generate(receiver, amount, commission)
 
     elif(cmd == 'getBlock'):
         #Blockchain 출력
