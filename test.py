@@ -346,9 +346,3 @@ while(cmd != 'exit'):
         #Blockchain 출력
         #아직 구현안함
         print('block....')
-
-sig = privateKey.ecdsa_sign(bytes(bytearray.fromhex(msg)), raw=False)
-sig_ser = privateKey.ecdsa_serialize(sig)
-sig_des = tmpKey.ecdsa_deserialize(sig_ser)
-verify = privateKey.pubkey.ecdsa_verify(bytes(bytearray.fromhex(msg)), sig_des)
-
