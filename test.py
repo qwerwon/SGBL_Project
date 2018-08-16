@@ -313,7 +313,6 @@ print(bytes(bytearray(privateKey.pubkey.serialize(compressed=False))).hex())
 print('My private key :')
 print(bytes(bytearray(privateKey.private_key)).hex())
 
-newPubkey = PrivateKey.pubkey()
 
 while(cmd != 'exit'):
     cmd = input('>>')
