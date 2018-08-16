@@ -32,17 +32,16 @@ class Block:
     def isValid(self):
 
         #Check if block_hash is valid
-        SumString = ""
-        SumString = SumString + str(self.previous_block) + str(self.merkle_root) + str(self.difficluty) + str(self.nonce)
+        SumString = str(self.previous_block) + str(self.merkle_root) + str(self.difficluty) + str(self.nonce)
         keccak_hash = keccak.new(digest_bits=256)
         keccak_hash.update(SumString.encode('ascii'))
-        if (str(keccak_hash) != self.block_hash):
+        if (keccak_hash.hexdigest() != self.block_hash):
             return False
 
         #Check if difficulty is valid(난이도 계산식과 일치하는지 확인, 미구현)
 
         #Check if block_hash is less than difficulty
-        if(int(self.block_hash) >= self.difficluty):
+        if(int('0x' + self.block_hash, 0) >= self.difficluty):
             return False
 
         #Check if is generated within 2-hours
@@ -51,16 +50,18 @@ class Block:
 
         #Check if block height is right(Orphan block, 미구현)
 
+        #Check if all transactions in tx_set are valid(미구현, Transaction.isvalid() 호출하면 끗)
+
 #input / output
 class Vin:
     def __init__(self, tx_id, index, unlock):
         self.tx_id = tx_id                      #string
         self.index = index                      #int
-        self.unlock = unlock                    #class '_cffi_backend.CDataOwn'
+        self.unlock = unlock                    #bytes => Privatekey.ecdsa_deserialize(unlock)로 디코딩
 class Vout:
     def __init__(self, value, lock):
         self.value = value                      #float
-        self.lock = lock                        #class 'secp256k1prp.PublicKey'
+        self.lock = lock                        #bytes => PublicKey(pub, raw=True)로 디코딩
 
 #Transaction
 # memoryPool : 아직 블록에 포함되지 않은 트랜잭션 리스트
@@ -80,7 +81,7 @@ class Transaction:
     def generate(self, receiver, amount, commission):
         #공개키 / 개인키 다시 구현
         global privateKey, publicKey
-
+        publicKey_ser = publicKey.serialize(compressed=False)
 
         #DB로부터 myUTXOset 가져와야 함
         sum = 0
@@ -90,12 +91,11 @@ class Transaction:
         vin = []
         vout = []
         tmpUTXO = []
-        SumString = ""
 
         #Gathering from myUTXOset
         for output in myUTXOset :
             # 공개키 / 개인키 다시 구현
-            if(output.lock != publicKey):
+            if(output.lock != publicKey_ser):
                 #myUTXOset과 DB로부터 output 제거해야함
                 continue
             tmpUTXO.append(output)
@@ -114,51 +114,52 @@ class Transaction:
             in_counter += 1
             # 자신의 개인키로 서명한 unlock 생성
 
-            # 공개키 / 개인키 다시 구현
-            vin.append(Vin(output.txOutid, output.index, privateKey.ecdsa_sign(bytes(bytearray.fromhex(output.txOutid), raw=False))))
+            unlockSig = privateKey.ecdsa_sign(output.txOutid, raw=False)
+            unlock = privateKey.ecdsa_serialize(unlockSig)
+            vin.append(Vin(output.txOutid, output.index, unlock))
 
             # myUTXOset과 DB로부터 output 제거해야함
             myUTXOset.pop(output)
+
         vout.append(Vout(amount, receiver))
         change = sum - commission - amount
-        vout.append(Vout(change, publicKey))
+        vout.append(Vout(change, publicKey_ser))
 
         #Generating tx_id
-        SumString = SumString + str(in_counter)
+        SumString = str(in_counter)
         for input in vin:
            SumString = SumString + str(input.tx_id) + str(input.index) + str(input.unlock)
         SumString = SumString + str(out_counter)
         for output in vout:
-           SumString = SumString + str(output.tx_id) + str(output.index) + str(output.unlock)
+           SumString = SumString + str(output.value) + str(output.lock)
         keccak_hash = keccak.new(digest_bits=256)
         keccak_hash.update(SumString.encode('ascii')) #keccak_hash == tx_id of current transaction
 
         #Add to UTXOset and myUTXOset
-        UTXOset.append(UTXO(str(keccak_hash), 0, receiver, amount))
-        UTXOset.append(UTXO(str(keccak_hash), 1, publicKey, change))
-        myUTXOset.append(UTXO(str(keccak_hash), 1, publicKey, change))
+        UTXOset.append(UTXO(keccak_hash.hexdigest(), 0, receiver, amount))
+        UTXOset.append(UTXO(keccak_hash.hexdigest(), 1, publicKey_ser, change))
+        myUTXOset.append(UTXO(keccak_hash.hexdigest(), 1, publicKey_ser, change))
 
         #Add to memoryPool
-        Transaction(str(keccak_hash), in_counter, vin, out_counter, vout)
+        Transaction(keccak_hash.hexdigest(), in_counter, vin, out_counter, vout)
 
         return True
 
     def isValid(self):
-        SumString = ""
         for output in self.vout:
             if(output.value < 0):
                 return False
 
         #Check if tx_id is valid
-        SumString = SumString + str(self.in_num)
+        SumString = str(self.in_num)
         for input in self.vin:
             SumString = SumString + str(input.tx_id) + str(input.index) + str(input.unlock)
         SumString = SumString + str(self.out_num)
         for output in self.vout:
-            SumString = SumString + str(output.tx_id) + str(output.index) + str(output.unlock)
+            SumString = SumString + str(output.value) + str(output.lock)
         keccak_hash = keccak.new(digest_bits=256)
         keccak_hash.update(SumString.encode('ascii'))  # keccak_hash == tx_id of current transaction
-        if(str(keccak_hash) != self.tx_id):
+        if(keccak_hash.hexdigest() != self.tx_id):
             return False
 
         outSum = 0
@@ -198,14 +199,15 @@ class UTXO:
     def __init__(self, txOutid, index, address, amount):
         self.txOutid = txOutid                  #string
         self.index = index                      #int
-        self.address = address                  #class 'secp256k1prp.PublicKey'
+        self.address = address                  #bytes => PublicKey(pub, raw=True)로 디코딩
         self.amount = amount                    #float
 
 #Block class의 method로 바꿔야 함(수정 요망)
 def mining(): #내용 추가
     global miningFlag, privateKey, publicKey
+    publicKey_ser = publicKey.serialize(compressed=False)
     while(miningFlag):
-        block_index = len(Blockchain)+1
+        block_index = len(Blockchain)
         previous_block = Blockchain[-1].block_hash
         tx_set = []
 
@@ -229,12 +231,13 @@ def mining(): #내용 추가
         in_num = 0
         vin = []
         out_num = 1
-        vout = [Vout(12.5, publicKey)]
+        vout = [Vout(12.5, publicKey_ser)]
         SumString = str(in_num) + str(vin) + str(out_num) + str(vout)
         keccak_hash = keccak.new(digest_bits=256)
         keccak_hash.update(SumString.encode('ascii'))
-        tx_id = str(keccak_hash)
+        tx_id = keccak_hash.hexdigest()
 
+        #coinbase transaction
         tx_set.insert(0, Transaction(tx_id, in_num, vin, out_num, vout))
 
 
@@ -243,7 +246,7 @@ def mining(): #내용 추가
         keccak_hash = keccak.new(digest_bits=256)
         for tx in tx_set:
             keccak_hash.update(tx.tx_id.encode('ascii'))
-        merkle_root = str(keccak_hash)
+        merkle_root = keccak_hash.hexdigest()
 
         blockData = str(previous_block) + str(merkle_root) + str(difficulty)
 
@@ -255,21 +258,21 @@ def mining(): #내용 추가
             continue
 
         #채굴에 성공하면, 해당 블록에 포함되는transaction과 utxo를 memoryPool과 UTXOset에서 제거한다
-        del memoryPool[:len(tx_set)]
+        del memoryPool[:len(tx_set)-1]
         #del UTXOset[]
         #del myUTXOset[]
 
         keccak_hash = keccak.new(digest_bits=256)
+        blockData = blockData + str(targetNonce)
         keccak_hash.update(blockData.encode('ascii'))
-        keccak_hash.update(bytes(targetNonce))
-        block_hash = str(keccak_hash)
+        block_hash = keccak_hash.hexdigest()
         timestamp = time.time()
 
-        Blockchain.append(Block(len(Blockchain), block_hash, previous_block, merkle_root, difficulty, timestamp, targetNonce, tx_set))
+        Blockchain.append(Block(block_index, block_hash, previous_block, merkle_root, difficulty, timestamp, targetNonce, tx_set))
         print('successfully mined new block#'+ str(len(Blockchain)))
 
-        #로그 확인을 위해서 2초 기다림
-        sleep(2.0)
+        #로그 확인을 위해서 3초 기다림
+        sleep(3.0)
 
 #수정 요망, 이상하게 코딩함
 def proofOfWork(blockData, targetValue):
@@ -277,12 +280,13 @@ def proofOfWork(blockData, targetValue):
     nonce = 0
     while(miningFlag):
         keccak_hash = keccak.new(digest_bits=256)
-        keccak_hash.update(blockData.encode(('ascii')))
-        keccak_hash.update(bytes(nonce))
+        SumString = blockData + str(nonce)
+        keccak_hash.update(SumString.encode(('ascii')))
         if(int('0x' + keccak_hash.hexdigest(), 0) < targetValue):
             print('target nonce :'+ str(nonce))
             return nonce
         nonce+=1
+
     return False
 
 #genesis block 생성, 추후 수정 필요
@@ -313,7 +317,6 @@ print(bytes(bytearray(privateKey.pubkey.serialize(compressed=False))).hex())
 print('My private key :')
 print(bytes(bytearray(privateKey.private_key)).hex())
 
-
 while(cmd != 'exit'):
     cmd = input('>>')
     if(cmd == 'help'):
@@ -333,18 +336,19 @@ while(cmd != 'exit'):
 
     elif(cmd == 'newTransaction'):
         receiver = input('Address of receiver : ')
-        #receiver의 주소에 대응하는 'secp256k1prp.PublicKey' "오브젝트"를 넘겨야함
-        #밑의 코드 참조
-        # def _update_public_key(self):
-        #public_key = self._gen_public_key(self.private_key)
-        #self.pubkey = PublicKey(
-        #    public_key, raw=False, ctx=self.ctx, flags=self.flags)
+        receiver = bytes.fromhex(receiver)
 
-        amount = int(input('BTC : '))
-        commission = int(input('Commission : '))
+        amount = float(input('BTC : '))
+        commission = float(input('Commission : '))
         Transaction(0, 0, [], 0, []).generate(receiver, amount, commission)
 
     elif(cmd == 'getBlock'):
         #Blockchain 출력
         #아직 구현안함
         print('block....')
+
+sig = privateKey.ecdsa_sign(bytes(bytearray.fromhex(msg)), raw=False)
+sig_ser = privateKey.ecdsa_serialize(sig)
+sig_des = tmpKey.ecdsa_deserialize(sig_ser)
+verify = privateKey.pubkey.ecdsa_verify(bytes(bytearray.fromhex(msg)), sig_des)
+
