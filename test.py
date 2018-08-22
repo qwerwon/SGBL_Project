@@ -15,6 +15,7 @@ import threading
 import time
 from time import sleep
 
+
 #Block
 # Blockchain : 가장 최근의 10개 블록 리스트
 Blockchain = []
