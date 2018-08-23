@@ -5,7 +5,6 @@ import socketserver
 #CLP
 import multiprocessing
 
-class Chain:
 
 class _PeerRequestHandler(socketserver.BaseRequestHandler):
 
@@ -39,7 +38,7 @@ class Peer(object):
         self.host = host
         self.port = port
         self._peers = set()
-        self._chain = Chain()
+   #     self._chain = Chain()
 
     def start(self):
         server = socketserver.ThreadingTCPServer(
@@ -67,7 +66,7 @@ class Peer(object):
         peers = self._request_peers(host, port)
         self._add_peers(json.loads(peers))
         self._request_connection()
-        self._broadcast_chain()
+#        self._broadcast_chain()
 
     # it will be useless maybe...
 
