@@ -1,9 +1,11 @@
-
 from peer import Peer
 #from test import Block 
 import multiprocessing
 import socket
 import json 
+import test
+import threading
+from test import Transaction
 
 class Command(object):
 
@@ -28,6 +30,7 @@ class Command(object):
 
     def mine(self, host, port, data):
         print('Mining...')
+        '''
         message = {'type': 'MINE', 'data': data}
         result = self._unicast(host, port, message)
         if result == 'OK':
@@ -35,6 +38,25 @@ class Command(object):
         else:
             print('Mine failed')
         return result
+        '''
+        if(test.miningFlag==True):
+            return True
+        print('Mining work starts')
+        test.miningFlag = True
+        test.miningThread= threading.Thread(target=test.mining)
+        test.miningThread.start()
+
+    def stop(self):
+        test.miningFlag = False
+        print('Stop Mining.\n')
+
+    def newTx(self):
+        receiver = input('Address of receiver : ')
+        receiver = bytes.fromhex(receiver)
+
+        amount = float(input('BTC : '))
+        commission = float(input('Commission : '))
+        Transaction(0, 0, [], 0, []).generate(receiver, amount, commission)
 
     def get_chain(self, host, port):
         message = {'type': 'SHOW'}

@@ -1,7 +1,8 @@
 import cmd
 
 from command import Command
-
+import test
+from test import Transaction
 class Interface(cmd.Cmd):
 
     def __init__(self):
@@ -24,6 +25,12 @@ class Interface(cmd.Cmd):
         data = arg.split(' ')[1]
         self._command.mine(self._default_host, int(port), data)
 
+    def do_stop(self, _):
+        self._command.stop()
+
+    def do_newTransaction(self,_):
+        self._command.newTx()
+ 
     def do_connect(self, arg):
         '''
         Connect a peer to another Eg: connect 5000 5001
@@ -55,5 +62,9 @@ class Interface(cmd.Cmd):
             'Connect a peer to another Eg: connect 5000 5001')
         print('\n')
         print('mine <port> <data> \t\t Mine a new block Eg: mine hello')
+        
+        print('stop  \t\t Stop mining block Eg: stop')
+
+        print('newTransaction \t\t Generate new Transaction.')
         print('show <port> \t\t\t Show blockchain of peer Eg: show 5000')
         print('\n')
