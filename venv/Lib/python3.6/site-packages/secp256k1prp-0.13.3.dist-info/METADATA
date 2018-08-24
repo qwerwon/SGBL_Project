@@ -1,0 +1,22 @@
+Metadata-Version: 2.1
+Name: secp256k1prp
+Version: 0.13.3
+Summary: FFI bindings to libsecp256k1-zkp
+Home-page: https://github.com/jhtitor/secp256k1prp-py
+Author: John Titor
+Author-email: john.titor@openmailbox.org
+License: MIT
+Platform: UNKNOWN
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Classifier: Programming Language :: Python :: Implementation :: PyPy
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Topic :: Security :: Cryptography
+Requires-Dist: cffi (>=1.3.0)
+
+UNKNOWN
+
+

@@ -14,6 +14,7 @@ import binascii
 import threading
 import time
 from time import sleep
+import command
 
 #Block
 # Blockchain : 가장 최근의 10개 블록 리스트
@@ -317,6 +318,7 @@ print(bytes(bytearray(privateKey.pubkey.serialize(compressed=False))).hex())
 print('My private key :')
 print(bytes(bytearray(privateKey.private_key)).hex())
 
+'''
 while(cmd != 'exit'):
     cmd = input('>>')
     if(cmd == 'help'):
@@ -346,3 +348,4 @@ while(cmd != 'exit'):
         #Blockchain 출력
         #아직 구현안함
         print('block....')
+        '''
