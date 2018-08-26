@@ -2,7 +2,8 @@ from peer import Peer
 #from test import Block 
 import multiprocessing
 import socket
-import json 
+import json
+import plyvel
 import test
 import threading
 from test import Transaction

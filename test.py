@@ -10,12 +10,17 @@ from Crypto.Hash import keccak
 #pip install secp256k1prp
 from secp256k1prp import PrivateKey, PublicKey
 
+#pip install plyvel
+import plyvel
+
+import json
 import binascii
 import threading
 import time
 from time import sleep
 import command
 
+global coinbase_txid
 #Block
 # Blockchain : 가장 최근의 10개 블록 리스트
 Blockchain = []
@@ -66,9 +71,10 @@ class Vout:
 
 #Transaction
 # memoryPool : 아직 블록에 포함되지 않은 트랜잭션 리스트
-memoryPool = []
+memoryPool=plyvel.DB('/tmp/testdb/',create_if_missing=True)
 # orphanPool : input중에 부모 output이 존재하지않는 트랜잭션 리스트
 orphanPool = []
+tx_tmp=[]
 class Transaction:
     def __init__(self, tx_id, in_num, vin, out_num, vout):
         self.tx_id = tx_id                      #string
@@ -76,7 +82,11 @@ class Transaction:
         self.vin = vin                          #list[Vin]
         self.out_num = out_num                  #int
         self.vout = vout                        #list[Vout]
-        memoryPool.append(self)
+        
+        
+        tx_data={"tx_id": tx_id, "in_num": in_num, "vin" : vin,"out_num" : out_num, "vout": vout}
+        tx_data_en=json.dumps(tx_data)
+        memoryPool.put(str(tx_id).encode(),tx_data_en.encode())
 
     #CLI로부터 transaction 생성 명령을 받았을 때(받는 사람, 보내는 양, 수수료 입력)
     def generate(self, receiver, amount, commission):
@@ -93,14 +103,14 @@ class Transaction:
         vout = []
         tmpUTXO = []
 
-        #Gathering from myUTXOset
-        for output in myUTXOset :
-            # 공개키 / 개인키 다시 구현
-            if(output.lock != publicKey_ser):
-                #myUTXOset과 DB로부터 output 제거해야함
+        for key,value in myUTXOset.iterator():
+            d_value=json.loads(value)
+            if d_value["lock"]!=publicKey_ser:
+                myUTXOset.delete(key)
+                UTXOset.delete(key)
                 continue
             tmpUTXO.append(output)
-            if(sum > amount+commission):
+            if (sum> amount + commission):
                 break
 
         #Insufficient balance
@@ -137,12 +147,23 @@ class Transaction:
         keccak_hash.update(SumString.encode('ascii')) #keccak_hash == tx_id of current transaction
 
         #Add to UTXOset and myUTXOset
-        UTXOset.append(UTXO(keccak_hash.hexdigest(), 0, receiver, amount))
-        UTXOset.append(UTXO(keccak_hash.hexdigest(), 1, publicKey_ser, change))
-        myUTXOset.append(UTXO(keccak_hash.hexdigest(), 1, publicKey_ser, change))
+        utxo1={'index' : 0, 'txOutid': keccak_hash.hexdigest(),'amount': amount}
+        utxo1_en=json.dumps(utxo1)
+        UTXOset.put((keccak_hash.hexdigest()).encode(),utxo1_en.encode())
+        
+        utxo1={'index' : 1, 'txOutid': keccak_hash.hexdigest(),'amount': change}
+        utxo1_en=json.dumps(utxo1)
+        UTXOset.put((keccak_hash.hexdigest()).encode(),utxo1_en.encode())
+        
+        utxo1={'index' : 1, 'txOutid': keccak_hash.hexdigest(),'amount': change}
+        utxo1_en=json.dumps(utxo1)
+        myUTXOset.put((keccak_hash.hexdigest()).encode(),utxo1_en.encode())
+
 
         #Add to memoryPool
-        Transaction(keccak_hash.hexdigest(), in_counter, vin, out_counter, vout)
+        utxo1={'tx_id':keccak_hash.hexdigest(),'in_num':in_counter,'vin': vin, 'out_num':out_counter, 'vout': vout}
+        utxo1_en=json_dumps(utxo1)
+        UTXOset.put((keccak_hash.hexdigest()).encode(),utxo1_en.encode())
 
         return True
 
@@ -182,6 +203,10 @@ class Transaction:
             #일단 index가 음수인지만 확인
             if(input.index < 0):
                 return False
+            
+            
+            if memoryPool.get((input.tx_id).encode())!=True:
+                return False
 
         #Check if sum of input values are less than sum of outputs
         #UTXO에서 합을 계산해야 가능
@@ -193,9 +218,11 @@ class Transaction:
 
 #UTXO
 # UTXOset : 전체 UTXO
-UTXOset = []
+UTXOset=plyvel.DB('/tmp/testdb1/',create_if_missing=True)
+
 # myUTXOset : 내 지갑의 UTXO
-myUTXOset = []
+myUTXOset=plyvel.DB('/tmp/testdb2/',create_if_missing=True)
+
 class UTXO:
     def __init__(self, txOutid, index, address, amount):
         self.txOutid = txOutid                  #string
@@ -220,8 +247,9 @@ def mining(): #내용 추가
         #Block에 들어가는 transactino의 최대 크기는 아직 3개로 고정, 수정해야 함
 
         #DB의 memoryPool에서 가져와야 함
-        tx_set = memoryPool[:3]
-
+        #tx_set = memoryPool[:3]
+        for i in range(0,len(tx_tmp)):
+            tx_set[i]=memoryPool.get(tx_tmp[i].encode())
         #수수료 계산(모든 input의 value - 모든 output의 value)
         #input의 value 구하기 위해서는 UTXOset을 검색해야함(추후에 추가 예졍)
         #for tx in tx_set:
@@ -259,7 +287,11 @@ def mining(): #내용 추가
             continue
 
         #채굴에 성공하면, 해당 블록에 포함되는transaction과 utxo를 memoryPool과 UTXOset에서 제거한다
-        del memoryPool[:len(tx_set)-1]
+        for i in range(0,len(tx_set)-1):
+            memoryPool.delete(tx_tmp[i].encode())
+        memoryPool.delete(coinbase_txid.encode())
+        for i in rnage(0,len(tx_tmp)):
+            tx_tmp.pop()
         #del UTXOset[]
         #del myUTXOset[]
 
