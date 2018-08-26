@@ -1,6 +1,3 @@
-#pip install Flask
-from flask import Flask
-
 #pip install ecdsa
 from ecdsa import SigningKey, VerifyingKey, SECP256k1
 
@@ -101,16 +98,17 @@ class Transaction:
         out_counter = 0
         vin = []
         vout = []
-        tmpUTXO = []
+        tmpUTXO = []    #Temporary UTXOset for resulting transaction
 
+        #Check if balance is sufficient
         for key,value in myUTXOset.iterator():
             d_value=json.loads(value)
             if d_value["lock"]!=publicKey_ser:
                 myUTXOset.delete(key)
-                UTXOset.delete(key)
+                #UTXOset.delete(key)
                 continue
-            tmpUTXO.append(output)
-            if (sum> amount + commission):
+            tmpUTXO.append(value)
+            if (sum > amount + commission):
                 break
 
         #Insufficient balance
@@ -162,7 +160,7 @@ class Transaction:
 
         #Add to memoryPool
         utxo1={'tx_id':keccak_hash.hexdigest(),'in_num':in_counter,'vin': vin, 'out_num':out_counter, 'vout': vout}
-        utxo1_en=json_dumps(utxo1)
+        utxo1_en=json.dumps(utxo1)
         UTXOset.put((keccak_hash.hexdigest()).encode(),utxo1_en.encode())
 
         return True
@@ -290,7 +288,7 @@ def mining(): #내용 추가
         for i in range(0,len(tx_set)-1):
             memoryPool.delete(tx_tmp[i].encode())
         memoryPool.delete(coinbase_txid.encode())
-        for i in rnage(0,len(tx_tmp)):
+        for i in range(0,len(tx_tmp)):
             tx_tmp.pop()
         #del UTXOset[]
         #del myUTXOset[]
@@ -349,35 +347,3 @@ print('My public key :')
 print(bytes(bytearray(privateKey.pubkey.serialize(compressed=False))).hex())
 print('My private key :')
 print(bytes(bytearray(privateKey.private_key)).hex())
-
-'''
-while(cmd != 'exit'):
-    cmd = input('>>')
-    if(cmd == 'help'):
-        print('Command List:\n\tmine.start : start mining work\n\tmine.stop : stop mining work\n\tnewTransaction : generate new transaction\n\tgetBlock : print main blockchain stream\n')
-    elif(cmd == 'mine.start'):
-        #마이닝 thread 생성
-        if(miningFlag==True):
-            continue
-        print('Mining work starts')
-        miningFlag = True
-        miningThread= threading.Thread(target=mining)
-        miningThread.start()
-
-    elif(cmd == 'mine.stop'):
-        miningFlag = False
-        print('Mining work stops')
-
-    elif(cmd == 'newTransaction'):
-        receiver = input('Address of receiver : ')
-        receiver = bytes.fromhex(receiver)
-
-        amount = float(input('BTC : '))
-        commission = float(input('Commission : '))
-        Transaction(0, 0, [], 0, []).generate(receiver, amount, commission)
-
-    elif(cmd == 'getBlock'):
-        #Blockchain 출력
-        #아직 구현안함
-        print('block....')
-        '''
