@@ -1,21 +1,11 @@
 import json
+import base64
 import plyvel
 from Crypto.Hash import keccak
 from secp256k1prp import PublicKey, PrivateKey
 from blockchain import Blockchain
-from utxo import UTXOset, UTXO
+from utxo import UTXOset, Vout, Vin, UTXO
 from key import Key
-
-# input / output
-class Vin:
-    def __init__(self, tx_id, index, unlock):
-        self.tx_id = tx_id                      # string
-        self.index = index                      # int
-        self.unlock = unlock                    # bytes => Privatekey.ecdsa_deserialize(unlock)로 디코딩
-class Vout:
-    def __init__(self, value, lock):
-        self.value = value                      # float
-        self.lock = lock                        # bytes => PublicKey(pub, raw=True)로 디코딩
 
 class Transaction(object):
     #class variables
@@ -33,10 +23,8 @@ class Transaction(object):
 
     # CLI로부터 transaction 생성 명령을 받았을 때(받는 사람, 보내는 양, 수수료 입력)
     def generate(self, receiver, amount, commission):
-        publicKey = Key.publickey()
-        privateKey = Key.privatekey()
-        UTXOset_db = UTXOset.utxoSet()
-        myUTXOset_db = UTXOset.myutxoSet()
+        publicKey = Key._publicKey
+        privateKey = Key._privateKey
 
         publicKey_ser = publicKey.serialize(compressed=False)
 
@@ -49,15 +37,16 @@ class Transaction(object):
         tmpUTXO = []  # Temporary UTXOset for resulting transaction
 
         # Check if balance is sufficient
-        for key, value in UTXOset_db.iterator():
+        for key, value in UTXOset._UTXOset.iterator():
             d_value = json.loads(value)
 
             # Debugging
             print('d_value is:')
             print(d_value)
 
-            if d_value["lock"] != publicKey_ser:
-                myUTXOset_db.delete(key)
+            lock_ser = base64.b64decode(d_value["address"])
+            if (lock_ser != publicKey_ser):
+                UTXOset._myUTXOset_db.delete(key)
                 continue
             tmpUTXO.append(UTXO(key, d_value["index"], d_value["address"], d_value["amount"]))
             total += d_value["amount"]
@@ -80,8 +69,8 @@ class Transaction(object):
             vin.append(Vin(output.txOutid, output.index, unlock))
 
             # myUTXOset과 DB로부터 output 제거해야함
-            myUTXOset_db.delete(output.txOutid, sync=True)
-            UTXOset_db.delete(output.txOutid, sync=True)
+            UTXOset._myUTXOset.delete(output.txOutid, sync=True)
+            UTXOset._UTXOset.delete(output.txOutid, sync=True)
 
         vout.append(Vout(amount, receiver))
         change = total - commission - amount
@@ -99,30 +88,35 @@ class Transaction(object):
         keccak_hash.update(SumString.encode('ascii'))  # keccak_hash == tx_id of current transaction
 
         # Add to UTXOset and myUTXOset
-        utxo1 = {'index': 0, 'address': receiver, 'amount': amount}
-        utxo1_en = json.dumps(utxo1)
-        UTXOset.__class__._UTXOset.put((keccak_hash.hexdigest()).encode(), utxo1_en.encode())
+        address = base64.b64encode(receiver).decode('utf-8')
+        utxo = {'index': 0, 'address': address, 'amount': amount}
+        utxo_en = json.dumps(utxo)
+        UTXOset._UTXOset.put((keccak_hash.hexdigest()).encode(), utxo_en.encode())
 
         if(change > 0):
-            utxo1 = {'index': 1, 'address': publicKey_ser, 'amount': change}
-            utxo1_en = json.dumps(utxo1)
-            UTXOset.__class__._UTXOset.put((keccak_hash.hexdigest()).encode(), utxo1_en.encode())
+            address = base64.b64encode(publicKey_ser).decode('utf-8')
+            utxo = {'index': 1, 'address': address, 'amount': change}
+            utxo_en = json.dumps(utxo)
+            UTXOset._UTXOset.put((keccak_hash.hexdigest()).encode(), utxo_en.encode())
 
-            utxo1 = {'index': 1, 'address': publicKey_ser, 'amount': change}
-            utxo1_en = json.dumps(utxo1)
-            UTXOset.__class__._myUTXOset.put((keccak_hash.hexdigest()).encode(), utxo1_en.encode())
+            utxo = {'index': 1, 'address': address, 'amount': change}
+            utxo_en = json.dumps(utxo)
+            UTXOset._myUTXOset.put((keccak_hash.hexdigest()).encode(), utxo_en.encode())
 
         # Add to memoryPool
-        utxo1 = {'in_num': in_counter, 'vin': vin, 'out_num': out_counter,
+        # Error : Object of type 'Vin' is not JSON serializable
+        for input in vin:
+            input.unlock = base64.b64encode(input.unlock).decode('utf-8')
+        for output in vout:
+            output.lock = base64.b64encode(output.lock).decode('utf-8')
+        mempool = {'in_num': in_counter, 'vin': vin, 'out_num': out_counter,
                  'vout': vout}
-        utxo1_en = json.dumps(utxo1)
-        UTXOset.put((keccak_hash.hexdigest()).encode(), utxo1_en.encode())
+        mempool_en = json.dumps(mempool)
+        Transaction._MemoryPool.put((keccak_hash.hexdigest()).encode(), mempool_en.encode())
 
         return True
 
     def isValid(self):
-        UTXOset_db = UTXOset.utxoSet()
-        rawblock_db = Blockchain.blockchain()
 
         for output in self.vout:
             if (output.value < 0):
@@ -154,7 +148,7 @@ class Transaction(object):
         for input in self.vin:
 
             # Block이나 UTXOset에 있는지 확인(혹은 memoryPool)
-            tmp = UTXOset_db.get(input.tx_id, default=False)
+            tmp = UTXOset._UTXOset.get(input.tx_id, default=False)
             if(tmp==False or json.loads(tmp)["index"]!=input.index):
                 print("Does not exist in UTXOset")
                 return False
@@ -177,5 +171,3 @@ class Transaction(object):
         print("Valid transaction")
         return True
 
-    def memorypool(self):
-        return self.__class__._MemoryPool

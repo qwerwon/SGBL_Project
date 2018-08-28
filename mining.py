@@ -1,12 +1,13 @@
 from Crypto.Hash import keccak
 import time
-import plyvel
+import json
+import base64
 from time import sleep
-from block import Block
-from transaction import Transaction, Vout
+from transaction import Transaction
 from key import Key
 from blockchain import Blockchain
 from block import Block
+from utxo import UTXOset, Vout
 
 class Mining(object):
     #class variables
@@ -18,6 +19,8 @@ class Mining(object):
 
         if(self._MiningFlag):
             return True
+
+        self.flagup()
 
         while(Mining._MiningFlag):
             #warning for poinint class var
@@ -59,7 +62,7 @@ class Mining(object):
             # 일단 tree를 만들지 않고, 모든 transaction의 hash를 다시 hash한 값을 merkle root로 간단하게 만듦, 수정 요망
             keccak_hash = keccak.new(digest_bits=256)
             for tx in tx_set:
-                keccak_hash.update(tx.tx_id.encode('ascii'))
+                keccak_hash.update(tx.tx_id)
             merkle_root = keccak_hash.hexdigest()
 
             blockData = str(previous_block) + str(merkle_root) + str(difficulty)
@@ -84,7 +87,18 @@ class Mining(object):
 
             Blockchain.addBlock(
                 Block(block_index, block_hash, previous_block, merkle_root, difficulty, timestamp, targetNonce, tx_set))
-            print('successfully mined new block#' + str(len(Blockchain)))
+            print('successfully mined new block#' + str(Blockchain._BlockHeight))
+
+            #Add to UTXOsets and myUTXOsets
+            for tx in tx_set:
+                index = 0
+                for vout in tx.vout:
+                    address = base64.b64encode(vout.lock).decode('utf-8')
+                    utxo_data = {"index": index, "address": address, "amount": vout.value}
+                    utxo_data_en = json.dumps(utxo_data)
+                    UTXOset._UTXOset.put(tx.tx_id, utxo_data_en.encode())
+                    if(vout.lock == publicKey_ser):
+                        UTXOset._myUTXOset.put(tx.tx_id, utxo_data_en.encode())
 
             # 로그 확인을 위해서 3초 기다림
             sleep(3.0)
@@ -100,10 +114,10 @@ class Mining(object):
     def miningflag(self):
         return self.__class__._MiningFlag
 
-    def proofofwork(self, blockData, targetValue):
-        MiningFlag = Mining.miningflag()
+    @classmethod
+    def proofofwork(cls, blockData, targetValue):
         nonce = 0
-        while(MiningFlag):
+        while(Mining._MiningFlag):
             keccak_hash = keccak.new(digest_bits=256)
             SumString = blockData + str(nonce)
             keccak_hash.update(SumString.encode(('ascii')))

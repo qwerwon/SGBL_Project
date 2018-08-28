@@ -21,8 +21,10 @@ class Blockchain(object):
             #Read from DB and update Blockchain._BlockChain
         #    pass
 
-    def addBlock(self, newBlock):
+    @classmethod
+    def addBlock(cls, newBlock):
         Blockchain._BlockChain.append(newBlock)
+        cls._BlockHeight += 1
 
 
     @classmethod

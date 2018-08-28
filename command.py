@@ -39,8 +39,8 @@ class Command(object):
             print('Mine failed')
         return result
         '''
-        test.miningThread= threading.Thread(target=Mining().mineStart())
-        test.miningThread.start()
+        miningThread = threading.Thread(target=Mining().mineStart)
+        miningThread.start()
 
     def stop(self):
         Mining.flagdown()
