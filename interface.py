@@ -2,7 +2,7 @@ import cmd
 
 from command import Command
 import test
-from test import Transaction
+from transaction import Transaction
 class Interface(cmd.Cmd):
 
     def __init__(self):

@@ -6,7 +6,7 @@ import json
 import plyvel
 import test
 import threading
-from test import Transaction
+from transaction import Transaction
 
 class Command(object):
 
