@@ -12,9 +12,11 @@ class UTXOset(object):
     # class variables
     _UTXOset = 0
     _myUTXOset = 0
-    def initialize(self):
-        self.__class__. _UTXOset = plyvel.DB('/db/UTXOset/', create_if_missing=True)
-        self.__class__. _myUTXOset = plyvel.DB('/db/myUTXOset/', create_if_missing=True)
+
+    @classmethod
+    def initialize(cls):
+        cls. _UTXOset = plyvel.DB('./db/UTXOset/', create_if_missing=True)
+        cls. _myUTXOset = plyvel.DB('./db/myUTXOset/', create_if_missing=True)
 
     #def append(self, arg...):
 

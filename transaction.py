@@ -27,8 +27,9 @@ class Transaction(object):
         self.out_num = out_num                  # int
         self.vout = vout                        # list[Vout]
 
-    def initialize(self):
-        self.__class__._MemoryPool = plyvel.DB('/db/MemoryPool/', create_if_missing=True)
+    @classmethod
+    def initialize(cls):
+        cls._MemoryPool = plyvel.DB('./db/MemoryPool/', create_if_missing=True)
 
     # CLI로부터 transaction 생성 명령을 받았을 때(받는 사람, 보내는 양, 수수료 입력)
     def generate(self, receiver, amount, commission):

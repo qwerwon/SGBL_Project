@@ -5,8 +5,6 @@ import socketserver
 #CLP
 import multiprocessing
 
-import test
-
 class _PeerRequestHandler(socketserver.BaseRequestHandler):
 
     #Message Handling function.
