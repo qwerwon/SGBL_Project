@@ -1,11 +1,12 @@
-from peer import Peer
+import json
 import multiprocessing
 import socket
-import json
-import test
 import threading
-from transaction import Transaction
+
 from mining import Mining
+from peer import Peer
+from transaction import Transaction
+
 
 class Command(object):
 

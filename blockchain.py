@@ -1,8 +1,10 @@
-import time
 import json
-from block import Block
-import os.path
+import time
+
 import plyvel
+
+from block import Block
+
 
 class Blockchain(object):
     # class variables
@@ -14,11 +16,11 @@ class Blockchain(object):
     def initialize(cls):
         #Should be revised
         cls._RawBlock = plyvel.DB('./db/RawBlock/', create_if_missing=True)
-        #if(os.path.isdir('./db/RawBlock')==False):
+        # if(os.path.isdir('./db/RawBlock')==False):
         cls.getGenesisblock()
         cls._BlockHeight = 0
-        #else:
-            #Read from DB and update Blockchain._BlockChain
+        # else:
+            # Read from DB and update Blockchain._BlockChain
         #    pass
 
     @classmethod
@@ -33,10 +35,10 @@ class Blockchain(object):
         block_data = {"block_hash": "0", "previous_block": "0", "merkle_root": "0", "difficulty": 0,
                       "timestamp": time.time(), "nonce": 0, "tx_set": []}
         block_data_en = json.dumps(block_data)
-        #Blockchain._RawBlock.put(bytes([0]), block_data_en)
+        # Blockchain._RawBlock.put(bytes([0]), block_data_en)
 
 
-    #Should be modified
+    # Should be modified
 
     @classmethod
     def getLatestBlock(cls):

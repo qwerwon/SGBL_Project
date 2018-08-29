@@ -1,21 +1,21 @@
-import json
 import base64
+import json
 import plyvel
 from Crypto.Hash import keccak
-from secp256k1prp import PublicKey, PrivateKey
-from blockchain import Blockchain
-from utxo import UTXOset, Vout, Vin, UTXO
 from key import Key
+from utxo import UTXOset, Vout, Vin, UTXO
+
 
 class Transaction(object):
-    #class variables
+    # class variables
     _MemoryPool = 0
+
     def __init__(self, tx_id, in_num, vin, out_num, vout):
-        self.tx_id = tx_id                      # bytes : key
-        self.in_num = in_num                    # int
-        self.vin = vin                          # list[Vin]
-        self.out_num = out_num                  # int
-        self.vout = vout                        # list[Vout]
+        self.tx_id = tx_id  # bytes : key
+        self.in_num = in_num  # int
+        self.vin = vin  # list[Vin]
+        self.out_num = out_num  # int
+        self.vout = vout  # list[Vout]
 
     @classmethod
     def initialize(cls):
@@ -74,7 +74,7 @@ class Transaction(object):
 
         vout.append(Vout(amount, receiver))
         change = total - commission - amount
-        if(change > 0):
+        if (change > 0):
             vout.append(Vout(change, publicKey_ser))
 
         # Generating tx_id
@@ -93,7 +93,7 @@ class Transaction(object):
         utxo_en = json.dumps(utxo)
         UTXOset._UTXOset.put((keccak_hash.hexdigest()).encode(), utxo_en.encode())
 
-        if(change > 0):
+        if (change > 0):
             address = base64.b64encode(publicKey_ser).decode('utf-8')
             utxo = {'index': 1, 'address': address, 'amount': change}
             utxo_en = json.dumps(utxo)
@@ -110,7 +110,7 @@ class Transaction(object):
         for output in vout:
             output.lock = base64.b64encode(output.lock).decode('utf-8')
         mempool = {'in_num': in_counter, 'vin': vin, 'out_num': out_counter,
-                 'vout': vout}
+                   'vout': vout}
         mempool_en = json.dumps(mempool)
         Transaction._MemoryPool.put((keccak_hash.hexdigest()).encode(), mempool_en.encode())
 
@@ -149,14 +149,14 @@ class Transaction(object):
 
             # Block이나 UTXOset에 있는지 확인(혹은 memoryPool)
             tmp = UTXOset._UTXOset.get(input.tx_id, default=False)
-            if(tmp==False or json.loads(tmp)["index"]!=input.index):
+            if (tmp == False or json.loads(tmp)["index"] != input.index):
                 print("Does not exist in UTXOset")
                 return False
 
             # 해당 input의 unlock sign을 대응하는 output의 lock으로 복호화 가능한지 확인
-            #sig_des = PrivateKey().ecdsa_deserialize(input.unlock)
+            # sig_des = PrivateKey().ecdsa_deserialize(input.unlock)
             # Search rawBlock and transaction pool that match with input.txid and input.index
-            #verify = vout.lock.ecdsa_verify(bytes(bytearray.fromhex(txOutid)),sig_des)
+            # verify = vout.lock.ecdsa_verify(bytes(bytearray.fromhex(txOutid)),sig_des)
 
             # index가 음수인지만 확인
             if (input.index < 0):
@@ -164,10 +164,8 @@ class Transaction(object):
 
         # Check if sum of input values are less than sum of outputs
 
-
         # Cehck if double-spended in memoryPool
         # DB 구현후에 구현할 예정
 
         print("Valid transaction")
         return True
-
