@@ -1,11 +1,12 @@
-from peer import Peer
-#from test import Block 
+import json
 import multiprocessing
 import socket
-import json 
-import test
 import threading
-from test import Transaction
+
+from mining import Mining
+from peer import Peer
+from transaction import Transaction
+
 
 class Command(object):
 
@@ -29,7 +30,7 @@ class Command(object):
         return result
 
     def mine(self, host, port, data):
-        print('Mining...')
+        print('Mining work starts')
         '''
         message = {'type': 'MINE', 'data': data}
         result = self._unicast(host, port, message)
@@ -39,15 +40,11 @@ class Command(object):
             print('Mine failed')
         return result
         '''
-        if(test.miningFlag==True):
-            return True
-        print('Mining work starts')
-        test.miningFlag = True
-        test.miningThread= threading.Thread(target=test.mining)
-        test.miningThread.start()
+        miningThread = threading.Thread(target=Mining().mineStart)
+        miningThread.start()
 
     def stop(self):
-        test.miningFlag = False
+        Mining.flagdown()
         print('Stop Mining.\n')
 
     def newTx(self):
@@ -99,6 +96,7 @@ class Command(object):
         pool.close()
         pool.join()
         return result.get()
+
     def _send_message(self, host, port, message):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((host, port))

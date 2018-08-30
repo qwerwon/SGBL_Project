@@ -2,14 +2,13 @@ import json
 import socket
 import socketserver
 
-#CLP
+# CLP
 import multiprocessing
 
-import test
 
 class _PeerRequestHandler(socketserver.BaseRequestHandler):
 
-    #Message Handling function.
+    # Message Handling function.
     def handle(self):
         msg_str = self.request.recv(655350).strip().decode('utf-8')
         msg_obj = json.loads(msg_str)
@@ -17,7 +16,7 @@ class _PeerRequestHandler(socketserver.BaseRequestHandler):
         response = 'OK'
         peer = self.server.peer
 
-        if msg_type == 'MINE': 
+        if msg_type == 'MINE':
             # Call mine func
             peer.mine(msg_obj['data'])
         elif msg_type == 'CONNECT':
@@ -33,17 +32,19 @@ class _PeerRequestHandler(socketserver.BaseRequestHandler):
             peer.replace_chain(chain)
         self.request.sendall(response.encode('utf-8'))
 
+
 class Peer(object):
 
     def __init__(self, host='127.0.0.1', port=5000):
         self.host = host
         self.port = port
         self._peers = set()
-   #     self._chain = Chain()
+
+    #     self._chain = Chain()
 
     def start(self):
         server = socketserver.ThreadingTCPServer(
-                (self.host, self.port), _PeerRequestHandler)
+            (self.host, self.port), _PeerRequestHandler)
         server.peer = self
 
         try:
@@ -51,11 +52,10 @@ class Peer(object):
         except KeyboardInterrupt as _:
             server.server_close()
 
-
     # connect new peer.
     def connect_to_peer(self, host, port):
         if (host, port) in self._peers:
-            return 
+            return
         '''
         When new peer is added.
         1. You will add peer.
@@ -67,7 +67,8 @@ class Peer(object):
         peers = self._request_peers(host, port)
         self._add_peers(json.loads(peers))
         self._request_connection()
-#        self._broadcast_chain()
+
+    #        self._broadcast_chain()
 
     # it will be useless maybe...
 
@@ -76,7 +77,7 @@ class Peer(object):
         self._broadcast_chain()
 
     # replace chain function need to be coded.
-    def replace_chain(self,chain):
+    def replace_chain(self, chain):
         self._chain.replace_chain(chain)
 
     @property
@@ -95,9 +96,8 @@ class Peer(object):
                 continue
             if (host, port) in self._peers:
                 continue
-            self._peers.add((host,port))
+            self._peers.add((host, port))
 
-    
     # Communication part.
 
     def _request_connection(self):
