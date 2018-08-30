@@ -40,10 +40,6 @@ class Transaction(object):
         for key, value in UTXOset._UTXOset.iterator():
             d_value = json.loads(value)
 
-            # Debugging
-            print('d_value is:')
-            print(d_value)
-
             lock_ser = base64.b64decode(d_value["address"])
             if (lock_ser != publicKey_ser):
                 UTXOset._myUTXOset_db.delete(key)
