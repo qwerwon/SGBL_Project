@@ -37,7 +37,7 @@ class Transaction(object):
         tmpUTXO = []  # Temporary UTXOset for resulting transaction
 
         # Check if balance is sufficient
-        for key, value in UTXOset._UTXOset.iterator():
+        for key, value in UTXOset._myUTXOset.iterator():
             d_value = json.loads(value)
 
             lock_ser = base64.b64decode(d_value["address"])
