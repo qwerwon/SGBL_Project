@@ -1,0 +1,7 @@
+*.pyc
+./db/MemoryPool/
+./db/RawBlock/
+./db/UTXOset/
+./db/myUTXOset/
+__pycache__
+.idea/
