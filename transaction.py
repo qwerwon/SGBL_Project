@@ -111,7 +111,7 @@ class Transaction(object):
             output.lock = base64.b64encode(output.lock).decode('utf-8')
         mempool = {'in_num': in_counter, 'vin': vin, 'out_num': out_counter,
                    'vout': vout}
-        mempool_en = json.dumps(mempool)
+        mempool_en = json.dumps(mempool.__dict__)
         Transaction._MemoryPool.put((keccak_hash.hexdigest()).encode(), mempool_en.encode())
 
         return True
