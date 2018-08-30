@@ -11,11 +11,11 @@ class Transaction(object):
     _MemoryPool = 0
 
     def __init__(self, tx_id, in_num, vin, out_num, vout):
-        self.tx_id = tx_id  # bytes : key
-        self.in_num = in_num  # int
-        self.vin = vin  # list[Vin]
-        self.out_num = out_num  # int
-        self.vout = vout  # list[Vout]
+        self.tx_id = tx_id          # bytes : key
+        self.in_num = in_num        # int
+        self.vin = vin              # list[Vin]
+        self.out_num = out_num      # int
+        self.vout = vout            # list[Vout]
 
     @classmethod
     def initialize(cls):
