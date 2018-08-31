@@ -41,9 +41,36 @@ class UTXOset(object):
     #def append(self, arg...):
 
     #def search(self, arg...):
+    
+    
 
     def utxoSet(self):
         return self.__class__._UTXOset
 
     def myutxoSet(self):
         return self.__class__._myUTXOset
+    
+
+
+
+    def Insert_UTXO(self,txOutid,index,address,amount):
+        utxo={'txOutid':str(txOutid),'index': str(index),'address':str(address),'amount': str(amount)}
+        utxo_en=json.dumps(utxo)
+        UTXOset._UTXOset.put(txOutid.encode(),utxo_en.encode())
+    
+    def Pop_UTXO(self,txOutid):
+        UTXOset._UTXOset.delete(txOutid.encode(),sync=True)
+
+
+
+
+    def Insert_myUTXO(self,txOutid,index,address,amount):
+        myutxo={'txOutid':str(txOutid),'index': str(index),'address':str(address),'amount': str(amount)}
+        myutxo_en=json.dumps(utxo)
+        UTXOset._myUTXOset.put(txOutid.encode,myutxo_en.encode())
+    def Pop_myUTXO(self,txOutid):
+        UTXOset._myUTXOset.delete(txOutid.encode(),sync=True)
+
+
+        
+        
