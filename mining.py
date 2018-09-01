@@ -127,3 +127,12 @@ class Mining(object):
             nonce += 1
 
         return False
+    
+    #Method that caculates the vout's values of currenctBlock
+    def Caculate_curBlock(cls):
+        total_val=0
+        for tx in tx_set:
+            tx_vout=tx.vout
+            for i in range(0,len(tx_vout)):
+                total_val+=tx_vout.value
+
