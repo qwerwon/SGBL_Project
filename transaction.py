@@ -42,7 +42,7 @@ class Transaction(object):
 
             lock_ser = base64.b64decode(d_value["address"])
             if (lock_ser != publicKey_ser):
-                UTXOset._myUTXOset_db.delete(key)
+                UTXOset.Pop_myUTXO(key)
                 continue
             tmpUTXO.append(UTXO(key, d_value["index"], d_value["address"], d_value["amount"]))
             total += d_value["amount"]
@@ -65,8 +65,9 @@ class Transaction(object):
             vin.append(Vin(output.txOutid, output.index, unlock))
 
             # myUTXOset과 DB로부터 output 제거해야함
-            UTXOset._myUTXOset.delete(output.txOutid, sync=True)
-            UTXOset._UTXOset.delete(output.txOutid, sync=True)
+            UTXOset.Pop_UTXO(output.txOutid)
+            UTXOset.Pop_myUTXO(output.txOutid)
+
 
         vout.append(Vout(amount, receiver))
         change = total - commission - amount
@@ -74,7 +75,7 @@ class Transaction(object):
             vout.append(Vout(change, publicKey_ser))
 
         # Generating tx_id
-        SumString = str(in_counter)
+        Sumstring=str(in_counter)
         for input in vin:
             SumString = SumString + str(input.tx_id) + str(input.index) + str(input.unlock)
         SumString = SumString + str(out_counter)
@@ -85,30 +86,15 @@ class Transaction(object):
 
         # Add to UTXOset and myUTXOset
         address = base64.b64encode(receiver).decode('utf-8')
-        utxo = {'index': 0, 'address': address, 'amount': amount}
-        utxo_en = json.dumps(utxo)
-        UTXOset._UTXOset.put((keccak_hash.hexdigest()).encode(), utxo_en.encode())
+        UTXOset.Insert_UTXO(keccak_hash.hexdigest(),index,address,amount)
 
         if (change > 0):
             address = base64.b64encode(publicKey_ser).decode('utf-8')
-            utxo = {'index': 1, 'address': address, 'amount': change}
-            utxo_en = json.dumps(utxo)
-            UTXOset._UTXOset.put((keccak_hash.hexdigest()).encode(), utxo_en.encode())
-
-            utxo = {'index': 1, 'address': address, 'amount': change}
-            utxo_en = json.dumps(utxo)
-            UTXOset._myUTXOset.put((keccak_hash.hexdigest()).encode(), utxo_en.encode())
-
-        # Add to memoryPool
-        # Error : Object of type 'Vin' is not JSON serializable
-        for input in vin:
-            input.unlock = base64.b64encode(input.unlock).decode('utf-8')
-        for output in vout:
-            output.lock = base64.b64encode(output.lock).decode('utf-8')
-        mempool = {'in_num': in_counter, 'vin': vin, 'out_num': out_counter,
-                   'vout': vout}
-        mempool_en = json.dumps(mempool.__dict__)
-        Transaction._MemoryPool.put((keccak_hash.hexdigest()).encode(), mempool_en.encode())
+            UTXOset.Insert_UTXO(keccak_hash.hexdigest(),index,address,amount)
+            UTXOset.Insert_myUTXO(keccak_hash.hexdigest(),index,address,amount)
+       
+       # Add to memoryPool
+        Transaction.Insert_MemoryPool(self,keccak_hash.hexdigest(),in_counter,vin,out_counter,vout)
 
         return True
 
@@ -165,3 +151,39 @@ class Transaction(object):
 
         print("Valid transaction")
         return True
+    
+    
+    def Insert_MemoryPool(self,tx_id,in_counter,vin,out_counter,vout):
+        newVin=[]
+        newVout=[]
+
+        for vin_el in vin:
+            newVin.append(json.dumps(vin_el.__dict__))
+        for vout_el in vout:
+            newVout.append(json.dumps(vout_el.__dict__))
+        mempool={"tx_id": str(tx_id), "in_num": str(in_counter),"vin": json.dumps(newVin),"out_num": str(out_counter),"vout": json.dumps(newVout)}
+        mempool_en=json.dumps(mempool)
+        Transaction._MemooryPool.put(str(tx_id).encode(),mempool_en.encode())
+    
+    def Pop_MemoryPool(self,tx_id):
+        
+        MemoryPool.delete(str(tx_id).encode(),sync=True)
+
+
+    #using vin's tx_id, find this transaction and add all the values of its vout
+
+    def Calculate_mem(self,tx_id):
+        total_val=0
+        if MemoryPool._MemoryPool.get(str(tx_id).encode() ,default=None) is None:
+            return 0
+        else:
+            tmptx_Data=json.loads(_MemoryPool.get(str(tx_id).encode()),default=None)
+            tmpvout=json.loads(tmptx_Data["vout"])
+            for i in range(0,len(tmpvout)):
+                tmpvout_el=json.loads(tmpvout[i])
+                total_val+=float(tmpvout_el["value"])
+            return total_val
+
+
+
+

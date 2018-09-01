@@ -141,7 +141,6 @@ class Mining(object):
         return (False,0)
 
 
-
     def generate_coinbase(self):
         # coinbase transaction 생성
         self.in_num = 0
@@ -155,4 +154,11 @@ class Mining(object):
 
         return Transaction(tx_id, self.in_num, self.vin, self.out_num, self.vout)
 
-
+      
+    #Method that caculates the vout's values of currenctBlock
+    def Caculate_curBlock(cls):
+        total_val=0
+        for tx in tx_set:
+            tx_vout=tx.vout
+            for i in range(0,len(tx_vout)):
+                total_val+=tx_vout.value
