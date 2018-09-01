@@ -15,8 +15,12 @@ class Mining(object):
     publicKey = 0
     publicKey_ser =0
 
-    def mineStart(self):
+    #difficulty 조절하려고 이전 6개 블록의 elapsedtime을 저장한다.
+    elaped_time_sum = 0
+    number_of_blocks =0
 
+
+    def mineStart(self):
         self.publicKey = Key._publicKey
         self.publicKey_ser = self.publicKey.serialize(compressed=False)
 
@@ -26,9 +30,9 @@ class Mining(object):
         self.flagup()
 
         while(Mining._MiningFlag):
-            tx_set = []
-
-
+            
+            tx_set = []     #tx_set변수
+            
             # coinbase transaction
             tx_set.insert(0, self.generate_coinbase())
 
@@ -51,16 +55,16 @@ class Mining(object):
             blockData = str(previous_block) + str(merkle_root) + str(Block.difficulty)
 
             # PoW 호출
-            targetNonce = Mining.proofofwork(blockData, Block.difficulty)
+            (targetNonce,time) = Mining.proofofwork(blockData, Block.difficulty)
+
 
             if (targetNonce == False):
                 print('Failed to get golden nonce')
                 continue
             else:
-
-                #candidate블록을 생성한다.
-                tmp_block = Block.candidateblock(targetNonce, tx_set,merkle_root)
-
+                #채굴된 코인 베이스 tx를 가지는 첫 블록을 생성한다.
+                tmp_block = Block.candidateblock(targetNonce, tx_set,merkle_root,time)
+                #생성된 블록을 블록 체인에 추가합니다.
                 Blockchain.addBlock(tmp_block)
                 print('successfully mined new block#' + str(Blockchain._BlockHeight))
 
@@ -100,16 +104,41 @@ class Mining(object):
     @classmethod
     def proofofwork(cls, blockData, targetValue):
         nonce = 0
+
+
+
+        start = int(time.time())
         while(Mining._MiningFlag):
             keccak_hash = keccak.new(digest_bits=256)
-            SumString = blockData + str(nonce)
+            current_time = time.time()
+            SumString = blockData + str(nonce) + str(current_time)
+            elaped_time = int(current_time - start)
+
             keccak_hash.update(SumString.encode(('ascii')))
             if (int('0x' + keccak_hash.hexdigest(), 0) < targetValue):
+
+                # 첫블록은 자꾸 경과시간이 0 이뜨더라구요....
+                if (Blockchain._BlockHeight < 6):
+                    cls.elaped_time_sum = 6
+                else:
+                    if (cls.number_of_blocks < 7):
+                        cls.elaped_time_sum += elaped_time
+                        cls.number_of_blocks += 1
+
+                    elif (cls.number_of_blocks == 7):
+                        Block.difficulty = int(cls.elaped_time_sum /50 * targetValue)
+                        cls.elaped_time_sum = 0
+                        cls.number_of_blocks = 0
+
+
                 print('target nonce :' + str(nonce))
-                return nonce
+                print('elapsed time: '+ str(elaped_time))
+                print('elapsed time of sum: ' + str(cls.elaped_time_sum))
+
+                return (nonce,current_time)
             nonce += 1
 
-        return False
+        return (False,0)
 
 
 
