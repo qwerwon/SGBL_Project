@@ -1,27 +1,34 @@
+from merkletools import MerkleTools
 from Crypto.Hash import keccak
 import time
 
-Blockchain = []
+
+#Blockchain = []
 
 
 class Block(object):
     # class variables
-    _CandidataBlock = 0
+    _CandidateBlock = 0
+    # 아직 난이도는 고정값 사용, 지난 6개의 블록을 생성하는데 걸린 시간으로 다시 계산해야 함
+    # 이유는 모르겠지만 자꾸 keccak_hash(256bit)이 512bit으로 나온다
+    difficulty =  0x0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff  # int
 
     def __init__(self, block_index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
         self.block_index = block_index  # int
         self.block_hash = block_hash  # string
         self.previous_block = previous_block  # string
         self.merkle_root = merkle_root  # string
-        self.difficluty = difficulty  # int
+        self.difficulty = difficulty
         self.timestamp = timestamp  # float
         self.nonce = nonce  # int
         self.tx_set = tx_set  # list[Transaction]
+        self.blockData = str(self.previous_block) + str(self.merkle_root) + str(self.difficulty)
+
 
     def isValid(self):
 
         # Check if block_hash is valid
-        SumString = str(self.previous_block) + str(self.merkle_root) + str(self.difficluty) + str(self.nonce)
+        SumString = str(self.previous_block) + str(self.merkle_root) + str(self.difficulty) + str(self.nonce)
         keccak_hash = keccak.new(digest_bits=256)
         keccak_hash.update(SumString.encode('ascii'))
         if (keccak_hash.hexdigest() != self.block_hash):
@@ -30,7 +37,7 @@ class Block(object):
         # Check if difficulty is valid(난이도 계산식과 일치하는지 확인, 미구현)
 
         # Check if block_hash is less than difficulty
-        if (int('0x' + self.block_hash, 0) >= self.difficluty):
+        if (int('0x' + self.block_hash, 0) >= self.difficulty):
             return False
 
         # Check if is generated within 2-hours
@@ -41,5 +48,38 @@ class Block(object):
 
         # Check if all transactions in tx_set are valid(미구현, Transaction.isvalid() 호출하면 끗)
 
-    def candidateblock(self):
-        return self.__class__._CandidataBlock
+    @classmethod
+    def candidateblock(cls,targetnonce,tx_set,merkle_root,time):
+
+        # warning for poinint class var
+        from blockchain import Blockchain
+        block_index = Blockchain._BlockHeight
+        previous_block = Blockchain.getLatestBlock().block_hash
+        tx_set = tx_set
+
+        blockData = str(previous_block) + str(merkle_root) + str(cls.difficulty)
+
+        keccak_hash = keccak.new(digest_bits=256)
+        blockData = blockData + str(targetnonce)
+        keccak_hash.update(blockData.encode('ascii'))
+        block_hash = keccak_hash.hexdigest()
+        timestamp = time
+
+        cls.CandidateBlock =  Block(block_index, block_hash,previous_block, merkle_root, cls.difficulty, timestamp, targetnonce, tx_set)
+
+        return cls._CandidateBlock
+
+    @classmethod
+    def create_merkle_root(self,tx_set):
+        self.tx_set = tx_set
+        # Merkle root 생성
+        mt = MerkleTools(hash_type='sha256')
+
+        for tx in self.tx_set:
+            mt.add_leaf( str(tx.tx_id) , True)
+        mt.make_tree()
+
+        root_value = mt.get_merkle_root()
+
+        return root_value
+
