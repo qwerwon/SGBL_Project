@@ -1,8 +1,10 @@
 import cmd
-
+import os
 from command import Command
-import test
-from test import Transaction
+from transaction import Transaction
+from utxo import UTXOset
+from blockchain import Blockchain
+
 class Interface(cmd.Cmd):
 
     def __init__(self):
@@ -47,7 +49,11 @@ class Interface(cmd.Cmd):
         self._command.get_chain(self._default_host, int(port))
 
     def do_exit(self, _):
-        exit(0)
+        UTXOset._UTXOset.close()
+        UTXOset._myUTXOset.close()
+        Transaction._MemoryPool.close()
+        Blockchain._RawBlock.close()
+        os._exit(0)
 
     def do_help(self, _):
         print('\n')
@@ -68,3 +74,6 @@ class Interface(cmd.Cmd):
         print('newTransaction \t\t Generate new Transaction.')
         print('show <port> \t\t\t Show blockchain of peer Eg: show 5000')
         print('\n')
+
+    def emptyline(self):
+        pass
