@@ -1,15 +1,15 @@
-from blockchain import Blockchain
 from interface import Interface
 from key import Key
-from memorypool import MemoryPool
+from block import Block
+from transaction import Transaction
 from utxo import UTXOset
 
 
 def main():
     # init
-    Blockchain.initialize()
+    Block.initialize()
     UTXOset.initialize()
-    MemoryPool.initialize()
+    Transaction.initialize()
 
     # key generation
     privateKey = Key().keyPairGenerate()

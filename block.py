@@ -1,13 +1,17 @@
+import base64
+import json
 import time
 
-from Crypto.Hash import keccak
+import plyvel
+
+from transaction import Transaction, Vin, Vout
 
 
 class Block(object):
     # class variables
-    _CandidateBlock = 0
     _BlockChain = []
     _BlockHeight = 0
+    _raw_block = 0
 
     def __init__(self, block_index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
         # Key = str(index).encode()
@@ -19,27 +23,129 @@ class Block(object):
         self.timestamp = timestamp              # int
         self.nonce = nonce                      # int
         self.tx_set = tx_set                    # list[Transaction]
-        # self.blockData = str(self.previous_block) + str(self.merkle_root) + str(self.difficulty)
 
-    def isValid(self):
-        # Check if block_hash is valid
-        SumString = str(self.previous_block) + str(self.merkle_root) + str(self.difficulty) + str(self.nonce)
-        keccak_hash = keccak.new(digest_bits=256)
-        keccak_hash.update(SumString.encode('ascii'))
-        if (keccak_hash.hexdigest() != self.block_hash):
+    @classmethod
+    def initialize(cls):
+        blk_height = 0
+        try:
+            cls._raw_block = plyvel.DB('./db/RawBlock', create_if_missing=True, error_if_exists=False)
+
+        except:
+            cls._raw_block = plyvel.DB('./db/RawBlock', create_if_missing=True)
+            for key, value in cls._raw_block:
+                blk_height += 1
+
+            if blk_height >= 10:
+                blk_start = blk_height - 10
+            else:
+                blk_start = 0
+
+            cls._BlockHeight = blk_height
+            for i in range(blk_start, blk_height):
+                tmp_block = cls.search_RawBlock(i)
+                if tmp_block is False:
+                    print('Block initialize faile')
+                    return False
+
+                cls.insert_blockchain(i, tmp_block.block_hash, tmp_block.previous_block, tmp_block.merkle_root,
+                                      tmp_block.difficulty, tmp_block.timestamp, tmp_block.nonce, tmp_block.tx_set)
+
+        else:
+            difficulty = 0x0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+            cls.insert_blockchain(0, '0', '0', '0', difficulty, int(time.time()), 0, [])
+
+    @classmethod
+    def Insert_RawBlock(cls, index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
+        """
+        Key of DB       : str(index).encode()
+
+        Args:
+            index           : int
+            block_hash      : string
+            previous_block  : string
+            merkle_root     : string
+            difficulty      : int
+            timestamp       : int
+            nonce           : int
+            tx_set          : list[Transaction()]
+        """
+
+        newtx_set = []
+        for tx in tx_set:
+            newtx = Transaction(0, 0, 0, 0, 0)
+            newtx.tx_id = base64.b64encode(tx.tx_id).decode('utf-8')
+            newtx.in_num = tx.in_num
+            newvin = []
+            for vin in tx.vin:
+                newvin.append(json.dumps(Vin(0, 0).__dict__))
+            newtx.out_num = tx.out_num
+            newvout = []
+            for vout in tx.vout:
+                newvout.append(json.dumps(Vout(0, 0).__dict__))
+            newtx.vin = newvin
+            newtx.vout = newvout
+            newtx_set.append(json.dumps(newtx.__dict__))
+        block_data = {"index": index, "block_hash": block_hash, "previous_block": previous_block,
+                      "merkle_root": merkle_root, "difficulty": difficulty, "timestamp": timestamp,
+                      "nonce": nonce, "tx_set": json.dumps(newtx_set)}
+        block_data_en = json.dumps(block_data)
+        cls._raw_block.put(str(index).encode(), block_data_en.encode())
+
+    @classmethod
+    def Pop_RawBlock(cls, index):
+        """
+        Key of DB       : str(index).encode()
+
+        Args:
+            index           : int
+        """
+
+        cls._raw_block.delete(str(index).encode())
+        # Require some operations handling _BlockHeight and _Blockchain
+
+    @classmethod
+    def search_RawBlock(cls, index):
+        """
+        Key of DB       : str(index).encode()
+
+        Args:
+            index           : int
+
+        Returns:
+            Block()
+        """
+
+        result = cls._raw_block.get(str(index).encode(), default=None)
+        if result is None:
             return False
+        else:
+            block_data = json.loads(cls._raw_block.get(str(index).encode(), default=None))
+            tmptx_set = json.loads(block_data["tx_set"])
+            tx_set = []
+            for i in range(0, len(tmptx_set)):
+                tx_set.append(tmptx_set[i])
 
-        # Check if difficulty is valid
+            return Block(index, block_data["block_hash"], block_data["previous_block"], block_data["merkle_root"],
+                         block_data["difficulty"], block_data["timestamp"], block_data["nonce"], tx_set)
 
-        # Check if block_hash is less than difficulty
-        if (int('0x' + self.block_hash, 0) >= self.difficulty):
-            return False
+    @classmethod
+    def insert_blockchain(cls, index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
+        """
+        Key of DB       : str(index).encode()
 
-        # Check if is generated within 2-hours
-        if (self.timestamp + 72000 < time.time()):
-            return False
+        Args:
+            index           : int
+            block_hash      : string
+            previous_block  : string
+            merkle_root     : string
+            difficulty      : int
+            timestamp       : int
+            nonce           : int
+            tx_set          : list[Transaction()]
+        """
 
-        # Check if block height is right(Orphan block, 미구현)
-
-        # Check if all transactions in tx_set are valid(미구현, Transaction.isvalid() 호출하면 끗)
+        cls._BlockChain.append(Block(index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set))
+        cls._BlockHeight += 1
+        if cls._BlockHeight > 10:
+            del cls._BlockChain[0]
 
