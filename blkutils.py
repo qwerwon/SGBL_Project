@@ -32,6 +32,8 @@ def getLatestBlock():
 
 
 def get_difficulty(index, prev_diff):
+    return 0x0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+    """
     if index > 6:
         if index > 9:
             elapsed = Block._BlockChain[9].timestamp - Block._BlockChain[3].timestamp
@@ -40,6 +42,14 @@ def get_difficulty(index, prev_diff):
         return int(elapsed/50*prev_diff)
     else:
         return 0x0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+    """
+
+def target_to_diff(target):
+    pass
+
+
+def diff_to_target(difficulty):
+    pass
 
 
 def get_candidateblock():
