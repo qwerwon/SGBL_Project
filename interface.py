@@ -1,9 +1,11 @@
 import cmd
 import os
+
+from blockchain import Blockchain
 from command import Command
 from transaction import Transaction
 from utxo import UTXOset
-from blockchain import Blockchain
+
 
 class Interface(cmd.Cmd):
 

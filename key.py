@@ -9,8 +9,8 @@ class Key(PrivateKey):
     _privateKey = 0
     _publicKey = 0
 
+    # private / public key 생성
     def keyPairGenerate(self):
-        # private / public key 생성
         # https://github.com/ludbb/secp256k1-py
         passphrase = input('Enter your passphrase for private key : ')
         keccak_hash = keccak.new(digest_bits=256)
@@ -20,6 +20,17 @@ class Key(PrivateKey):
         self.__class__._publicKey = self.__class__._privateKey.pubkey
 
         return self.__class__._privateKey
+
+    def generate_sign(self, msg):
+        return self.ecdsa_sign(msg, raw=False)
+
+    def verify(self, sig, key, msg):
+        pass
+        # sig_des = PrivateKey().ecdsa_deserialize(input.unlock)
+        # Search rawBlock and transaction pool that match with input.txid and input.index
+        # verify = vout.lock.ecdsa_verify(bytes(bytearray.fromhex(txOutid)),sig_des)
+        #publickey
+
 
     def publickey(self):
         return self.__class__._publicKey

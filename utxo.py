@@ -1,8 +1,13 @@
+import base64
+import json
+
 import plyvel
+
 
 class UTXO(object):
     def __init__(self, txOutid, index, address, amount):
-        self.txOutid = txOutid                  # bytes : key
+        # Key = txOutid(in byte) + index.to_bytes(1, byteorder="little")
+        self.txOutid = txOutid                  # string
         self.index = index                      # int
         self.address = address                  # string => bytes => PublicKey(pub, raw=True)로 디코딩
         self.amount = amount                    # float
@@ -38,39 +43,30 @@ class UTXOset(object):
         cls. _UTXOset = plyvel.DB('./db/UTXOset/', create_if_missing=True)
         cls. _myUTXOset = plyvel.DB('./db/myUTXOset/', create_if_missing=True)
 
-    #def append(self, arg...):
-
-    #def search(self, arg...):
-    
-    
-
-    def utxoSet(self):
-        return self.__class__._UTXOset
-
-    def myutxoSet(self):
-        return self.__class__._myUTXOset
-    
-
-
-
-    def Insert_UTXO(self,txOutid,index,address,amount):
-        utxo={'txOutid':str(txOutid),'index': str(index),'address':str(address),'amount': str(amount)}
+    @classmethod
+    def Insert_UTXO(cls, txOutid, index, address, amount):
+        key = txOutid + index.to_bytes(1, byteorder="little")
+        txOutid_str = base64.b64decode(txOutid).decode('utf-8')
+        address_str = base64.b64decode(address).decode('utf-8')
+        utxo={'txOutid':txOutid_str, 'index': index, 'address': address_str, 'amount': amount}
         utxo_en=json.dumps(utxo)
-        UTXOset._UTXOset.put(txOutid.encode(),utxo_en.encode())
-    
-    def Pop_UTXO(self,txOutid):
-        UTXOset._UTXOset.delete(txOutid.encode(),sync=True)
+        cls._UTXOset.put(key, utxo_en.encode())
 
+    @classmethod
+    def Pop_UTXO(cls, txOutid, index):
+        key = txOutid + index.to_bytes(1, byteorder="little")
+        cls._UTXOset.delete(key, sync=True)
 
+    @classmethod
+    def Insert_myUTXO(cls, txOutid, index, address, amount):
+        key = txOutid + index.to_bytes(1, byteorder="little")
+        txOutid_str = base64.b64decode(txOutid).decode('utf-8')
+        address_str = base64.b64decode(address).decode('utf-8')
+        myutxo={'txOutid':txOutid_str, 'index': index, 'address': address_str, 'amount': amount}
+        myutxo_en=json.dumps(myutxo)
+        cls._myUTXOset.put(key, myutxo_en.encode())
 
-
-    def Insert_myUTXO(self,txOutid,index,address,amount):
-        myutxo={'txOutid':str(txOutid),'index': str(index),'address':str(address),'amount': str(amount)}
-        myutxo_en=json.dumps(utxo)
-        UTXOset._myUTXOset.put(txOutid.encode,myutxo_en.encode())
-    def Pop_myUTXO(self,txOutid):
-        UTXOset._myUTXOset.delete(txOutid.encode(),sync=True)
-
-
-        
-        
+    @classmethod
+    def Pop_myUTXO(cls, txOutid, index):
+        key = txOutid + index.to_bytes(1, byteorder="little")
+        cls._myUTXOset.delete(key, sync=True)

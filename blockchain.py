@@ -1,100 +1,56 @@
 import json
 import time
 
-import plyvel
-
 from block import Block
+from merkleroot import create_merkle_root
+from rawblock import RawBlock
+from transaction import Transaction
 
 
 class Blockchain(object):
     # class variables
     _BlockChain = []
-    _RawBlock = 0
     _BlockHeight = 0
 
     @classmethod
     def initialize(cls):
-        _tmpBlockheight=0
-        try:
-            cls._RawBlock = plyvel.DB('./db/RawBlock/', create_if_missing=True,error_if_exists=False)
-        except:
-            
-            cls._RawBlock = plyvel.DB('./db/RawBlock/', create_if_missing=True)
-            for key, value in _RawBlock:
-                _tmpBlockheight+=1
-           
-            if _tmpBlockheight >= 10:
-                _tmpblockstart =_tmpBlockheight-10
-            else:
-                _tmpblockstart = 0
-
-            for i in range(_tmpblockstart,_tmpBlockheight):
-                _BlockChain.append(json.loads(_RawBlock.get(str(i).encode())))
-            
-            cls._BlockHeight = _tmpBlockheight 
-
-        else:
+        (block_start, block_height) = RawBlock.initialize()
+        if block_height == 0:
             Blockchain.getGenesisblock()
             cls._BlockHeight = 1
 
-
-            #update in _blockchain memory --10!! 
-
-
-        # else:
-            # Read from DB and update Blockchain._BlockChain
-        #    pass
-
-    @classmethod
-    def addBlock(cls, newBlock):
-        Blockchain._BlockChain.append(newBlock)
-        cls._BlockHeight += 1
-
+        else:
+            for i in range(block_start, block_height):
+                cls._BlockChain.append(RawBlock.search_RawBlock(i))
+            cls._BlockHeight = block_height
 
     @classmethod
     def getGenesisblock(cls):
-        cls._BlockChain.append(Block(0, 0, 0, 0, 0, 0, 0, []))
-        block_data = {"block_hash": "0", "previous_block": "0", "merkle_root": "0", "difficulty": 0,
-                      "timestamp": time.time(), "nonce": 0, "tx_set": []}
-        block_data_en = json.dumps(block_data)
-        # Blockchain._RawBlock.put(bytes([0]), block_data_en)
-
-
-    # Should be modified
+        difficulty = 0x0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        cur_time = int(time.time())
+        RawBlock.Insert_RawBlock(0, '0', '0', '0', difficulty, cur_time, 0, [])
+        cls._BlockChain.append(Block(0, '0', '0', '0', difficulty, cur_time, 0, []))
+        cls._BlockHeight = 1
 
     @classmethod
-    def getLatestBlock(cls):
-        return cls._BlockChain[0]
+    def add_block(cls, index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
+        RawBlock.Insert_RawBlock(index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set)
+        cls._BlockChain.append(Block(index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set))
+        cls._BlockHeight += 1
+        if cls._BlockHeight > 10:
+            del cls._BlockChain[0]
 
-    def blockchain(self):
-        return self.__class__._BlockChain
 
-    def rawblock(self):
-        return self.__class__._RawBlock
-
-    def blockheight(self):
-        return self.__class__._BlockHeight
-   
-    def insert_RawBlock(self,index,block_hash,previous_block,merkle_root,difficulty,timestamp,nonce,tx_set):
-        block_data={"index": str(index) , "block_hash": str(block_hash),"previous_block":str(previous_block),"merkle_root": str(merkle_root),"difficulty":str(difficulty),"timestamp":str(timestamp),"nonce":str(nonce),"tx_set":json.dumps(tx_set.__dict__)}
-        block_data_en=json.dumps(block_data)
-        Blockchain._RawBlock.put(str(index).encode(),block_data_en.encode())
-    
-    def Pop_RawBlock(self,index):
-        
-        Blockchain.RawBlock.delete(str(index).encode())
-
-    
-    #Method that calculates the vout's values
-    def Calculate_block(self,tx_id,index):
-
+    # Method that calculates the vout's values
+    def Calculate_block_vouts(self, tx_id, index):
         # if there is no key-value data in db
-        if _RawBlock.get(str(index).encode(),default=None) is None:
+        if RawBlock._raw_block.get(str(index).encode(),default=None) is None:
             return 0
+
         #if there is key-value data in db
         else:
             total_val=0
-            tmpbl_Data=json.loads(_RawBlock.get(str(index).encode()),default=None)
+            tmpbl_Data=json.loads(RawBlock._raw_block.get(str(index).encode()),default=None)
             tmptx_set=json.loads(tmpbl_Data["tx_set"])
             for i in range(0,len(tmptx_set)):
                 tmptx_set_el=json.loads(tmptx_set[i])
@@ -105,12 +61,42 @@ class Blockchain(object):
                 total_val += tmptx_vout.value
             return total_val
 
+    def getLatestBlock(self):
+        if Blockchain._BlockHeight > 10:
+            return Blockchain._BlockChain[9]
+        else:
+            return Blockchain._BlockChain[Blockchain._BlockHeight-1]
 
-                
+    def get_difficulty(self, index, prev_diff):
+        if index > 6:
+            if index > 9:
+                elapsed = Blockchain._BlockChain[9].timestamp - Blockchain._BlockChain[3].timestamp
+            else:
+                elapsed = Blockchain._BlockChain[index-1].timestamp - Blockchain._BlockChain[index-6].timestamp
+            return int(elapsed/50*prev_diff)
+        else:
+            return 0x0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 
+    def set_candidateblock(self):
+        # warning for poinint class var
+        block_index = Blockchain._BlockHeight
+        prev_block = self.getLatestBlock()
+        previous_block = prev_block.block_hash
 
+        tx_set = []
+        total_fee = 12.5
 
+        # get tx_set from MemPool greedy
+        # calculate total commission of tx_set(total_fee)
+        # Transaction priority required
 
+        coinbase = Transaction(b'0', 0, [], 0, []).generate_coinbase(total_fee)
+        tx_set.insert(0, coinbase)
+
+        merkle_root = create_merkle_root(tx_set)
+        difficulty = Blockchain().get_difficulty(Blockchain._BlockHeight, prev_block.difficulty)
+
+        return Block(block_index, '0', previous_block, merkle_root, difficulty, 0, 0, tx_set)
 
     #Require block fork management methods
 
