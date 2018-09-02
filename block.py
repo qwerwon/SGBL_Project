@@ -8,11 +8,14 @@ from transaction import Transaction, Vin, Vout
 
 
 class Block(object):
-    # class variables
+    # Class variables
+    ####################################################################################################################
     _BlockChain = []
     _BlockHeight = 0
     _raw_block = 0
 
+    # Block class init
+    ####################################################################################################################
     def __init__(self, block_index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
         # Key = str(index).encode()
         self.block_index = block_index          # int
@@ -24,6 +27,9 @@ class Block(object):
         self.nonce = nonce                      # int
         self.tx_set = tx_set                    # list[Transaction]
 
+
+    # Get Block Info from db
+    ####################################################################################################################
     @classmethod
     def initialize(cls):
         blk_height = 0
@@ -47,13 +53,21 @@ class Block(object):
                     print('Block initialize faile')
                     return False
 
-                cls.insert_blockchain(i, tmp_block.block_hash, tmp_block.previous_block, tmp_block.merkle_root,
-                                      tmp_block.difficulty, tmp_block.timestamp, tmp_block.nonce, tmp_block.tx_set)
+                cls.insert_blockchain(i,
+                                      tmp_block.block_hash,
+                                      tmp_block.previous_block,
+                                      tmp_block.merkle_root,
+                                      tmp_block.difficulty,
+                                      tmp_block.timestamp,
+                                      tmp_block.nonce,
+                                      tmp_block.tx_set)
 
         else:
             difficulty = 0x0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
             cls.insert_blockchain(0, '0', '0', '0', difficulty, int(time.time()), 0, [])
 
+    # Insert Block to db
+    #####################################################################################################################
     @classmethod
     def Insert_RawBlock(cls, index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
         """
@@ -71,26 +85,43 @@ class Block(object):
         """
 
         newtx_set = []
+        # Convert tx for insert db
+        ################################################################################################################
         for tx in tx_set:
+
             newtx = Transaction(0, 0, 0, 0, 0)
             newtx.tx_id = base64.b64encode(tx.tx_id).decode('utf-8')
             newtx.in_num = tx.in_num
             newvin = []
+
             for vin in tx.vin:
                 newvin.append(json.dumps(Vin(0, 0).__dict__))
+
             newtx.out_num = tx.out_num
             newvout = []
+
             for vout in tx.vout:
                 newvout.append(json.dumps(Vout(0, 0).__dict__))
+
             newtx.vin = newvin
             newtx.vout = newvout
             newtx_set.append(json.dumps(newtx.__dict__))
-        block_data = {"index": index, "block_hash": block_hash, "previous_block": previous_block,
-                      "merkle_root": merkle_root, "difficulty": difficulty, "timestamp": timestamp,
-                      "nonce": nonce, "tx_set": json.dumps(newtx_set)}
+
+        block_data = {"index": index,
+                      "block_hash": block_hash,
+                      "previous_block": previous_block,
+                      "merkle_root": merkle_root,
+                      "difficulty": difficulty,
+                      "timestamp": timestamp,
+                      "nonce": nonce,
+                      "tx_set": json.dumps(newtx_set)}
+
         block_data_en = json.dumps(block_data)
+
         cls._raw_block.put(str(index).encode(), block_data_en.encode())
 
+    # Pop block from DB
+    ####################################################################################################################
     @classmethod
     def Pop_RawBlock(cls, index):
         """
@@ -103,6 +134,8 @@ class Block(object):
         cls._raw_block.delete(str(index).encode())
         # Require some operations handling _BlockHeight and _Blockchain
 
+    # Search block from DB
+    ####################################################################################################################
     @classmethod
     def search_RawBlock(cls, index):
         """
@@ -116,18 +149,28 @@ class Block(object):
         """
 
         result = cls._raw_block.get(str(index).encode(), default=None)
+
         if result is None:
             return False
         else:
             block_data = json.loads(cls._raw_block.get(str(index).encode(), default=None))
             tmptx_set = json.loads(block_data["tx_set"])
             tx_set = []
+
             for i in range(0, len(tmptx_set)):
                 tx_set.append(tmptx_set[i])
 
-            return Block(index, block_data["block_hash"], block_data["previous_block"], block_data["merkle_root"],
-                         block_data["difficulty"], block_data["timestamp"], block_data["nonce"], tx_set)
+            return Block(index,
+                         block_data["block_hash"],
+                         block_data["previous_block"],
+                         block_data["merkle_root"],
+                         block_data["difficulty"],
+                         block_data["timestamp"],
+                         block_data["nonce"],
+                         tx_set)
 
+    # Insert block into blockchain
+    ####################################################################################################################
     @classmethod
     def insert_blockchain(cls, index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
         """
@@ -144,8 +187,19 @@ class Block(object):
             tx_set          : list[Transaction()]
         """
 
-        cls._BlockChain.append(Block(index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set))
+        cls._BlockChain.append(
+            Block(index,
+                  block_hash,
+                  previous_block,
+                  merkle_root,
+                  difficulty,
+                  timestamp,
+                  nonce,
+                  tx_set))
+
         cls._BlockHeight += 1
+        ################################################################################################################
+        # Is is right?
         if cls._BlockHeight > 10:
             del cls._BlockChain[0]
 
