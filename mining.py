@@ -24,9 +24,11 @@ class Mining(object):
 
         cls.flagup()
 
-        target_diff = get_difficulty(Block._BlockHeight, getLatestBlock().difficulty)
-        while(Mining._MiningFlag):
 
+        while Mining._MiningFlag:
+
+            target_diff = get_difficulty(Block._BlockHeight, getLatestBlock().difficulty)
+            print('target difficulty :', target_diff)
             candidate_block = get_candidateblock()
             blockData = str(candidate_block.previous_block) + str(candidate_block.merkle_root) + \
                         str(target_diff)
@@ -43,8 +45,13 @@ class Mining(object):
                 candidate_block.difficulty = target_diff
                 candidate_block.nonce = targetNonce
                 candidate_block.timestamp = time
-                coinbase = candidate_block.tx_set[0]
+
+                # Add to RawBlock and _Blockchain
                 Block.Insert_RawBlock(candidate_block.block_index, candidate_block.block_hash, candidate_block.previous_block,
+                                      candidate_block.merkle_root, candidate_block.difficulty, candidate_block.nonce,
+                                      candidate_block.timestamp, candidate_block.tx_set)
+
+                Block.insert_blockchain(candidate_block.block_index, candidate_block.block_hash, candidate_block.previous_block,
                                       candidate_block.merkle_root, candidate_block.difficulty, candidate_block.nonce,
                                       candidate_block.timestamp, candidate_block.tx_set)
 
@@ -60,6 +67,7 @@ class Mining(object):
             # Delete from MemoryPool
             for tx in candidate_block.tx_set:
                Transaction.Pop_MemoryPool(base64.b64decode(tx.tx_id))
+
 
 
     @classmethod
