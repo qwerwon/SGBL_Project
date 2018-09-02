@@ -1,10 +1,10 @@
+import base64
 import time
-from time import sleep
 
 from Crypto.Hash import keccak
 
+from blkutils import get_difficulty, getLatestBlock, get_candidateblock
 from block import Block
-from blockchain import Blockchain
 from key import Key
 from transaction import Transaction
 from utxo import UTXOset
@@ -14,22 +14,23 @@ class Mining(object):
     # class variables
     _MiningFlag = False
 
-    def mineStart(self):
+    @classmethod
+    def mineStart(cls):
         publicKey = Key._publicKey
         publicKey_ser = publicKey.serialize(compressed=False)
 
-        if(self._MiningFlag):
+        if(cls._MiningFlag):
             return True
 
-        self.flagup()
+        cls.flagup()
 
-        target_diff = Blockchain().get_difficulty(Blockchain._BlockHeight, Blockchain().getLatestBlock().difficulty)
+        target_diff = get_difficulty(Block._BlockHeight, getLatestBlock().difficulty)
         while(Mining._MiningFlag):
 
-            candidate_block = Blockchain().set_candidateblock()
+            candidate_block = get_candidateblock()
             blockData = str(candidate_block.previous_block) + str(candidate_block.merkle_root) + \
-                        str(candidate_block.difficulty)
-            (targetNonce, time) = Mining.proofofwork(blockData, candidate_block.difficulty)
+                        str(target_diff)
+            (targetNonce, time) = Mining.proofofwork(blockData, target_diff)
 
             if targetNonce == False:
                 print('Failed to get golden nonce')
@@ -39,22 +40,27 @@ class Mining(object):
                 blockData = blockData + str(targetNonce)
                 keccak_hash.update(blockData.encode('ascii'))
                 candidate_block.block_hash = keccak_hash.hexdigest()
-                Blockchain.add_block(candidate_block.block_index, candidate_block.block_hash, candidate_block.previous_block,
-                                         candidate_block.merkle_root, candidate_block.difficulty, targetNonce, time,
-                                         candidate_block.tx_set)
-                print('successfully mined new block#' + str(Blockchain._BlockHeight))
+                candidate_block.difficulty = target_diff
+                candidate_block.nonce = targetNonce
+                candidate_block.timestamp = time
+                coinbase = candidate_block.tx_set[0]
+                Block.Insert_RawBlock(candidate_block.block_index, candidate_block.block_hash, candidate_block.previous_block,
+                                      candidate_block.merkle_root, candidate_block.difficulty, candidate_block.nonce,
+                                      candidate_block.timestamp, candidate_block.tx_set)
 
-            # Delete from MemoryPool
-            for tx in Block._CandidateBlock.tx_set:
-               Transaction.Pop_MemoryPool(tx.tx_id)
+                print('successfully mined new block#' + str(Block._BlockHeight))
 
             # Add to UTXOsets and myUTXOsets(for coinbase transaction only)
             coinbase = candidate_block.tx_set[0]
-            UTXOset.Insert_UTXO(coinbase.tx_id, 0, coinbase.vout[0].lock, coinbase.vout[0].value)
-            UTXOset.Insert_myUTXO(coinbase.tx_id, 0, coinbase.vout[0].lock, coinbase.vout[0].value)
+            coinbase_data = coinbase.vout[0]
+            coinbase_tx_id = coinbase.tx_id
+            UTXOset.Insert_UTXO(coinbase_tx_id, 0, coinbase_data.lock, coinbase_data.value)
+            UTXOset.Insert_myUTXO(coinbase_tx_id, 0, coinbase_data.lock, coinbase_data.value)
 
-            # Wait for log(will be removed)
-            sleep(3.0)
+            # Delete from MemoryPool
+            for tx in candidate_block.tx_set:
+               Transaction.Pop_MemoryPool(base64.b64decode(tx.tx_id))
+
 
     @classmethod
     def proofofwork(cls, blockData, targetValue):

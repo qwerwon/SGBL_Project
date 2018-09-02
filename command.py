@@ -5,7 +5,7 @@ import threading
 
 from mining import Mining
 from peer import Peer
-from transaction import Transaction
+from txutils import generate_transaction
 
 
 class Command(object):
@@ -40,7 +40,7 @@ class Command(object):
             print('Mine failed')
         return result
         '''
-        miningThread = threading.Thread(target=Mining().mineStart)
+        miningThread = threading.Thread(target=Mining.mineStart)
         miningThread.start()
 
     def stop(self):
@@ -53,7 +53,7 @@ class Command(object):
 
         amount = float(input('BTC : '))
         commission = float(input('Commission : '))
-        Transaction(0, 0, [], 0, []).generate(receiver, amount, commission)
+        generate_transaction(receiver, amount, commission)
 
     def get_chain(self, host, port):
         message = {'type': 'SHOW'}
