@@ -1,11 +1,11 @@
+import base64
 import json
 import time
-import base64
 
 import plyvel
 
 from transaction import Transaction, Vin, Vout
-from utxo import UTXO, UTXOset
+
 
 class Block(object):
     # class variables
