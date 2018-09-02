@@ -48,12 +48,11 @@ class Mining(object):
 
                 # Add to RawBlock and _Blockchain
                 Block.Insert_RawBlock(candidate_block.block_index, candidate_block.block_hash, candidate_block.previous_block,
-                                      candidate_block.merkle_root, candidate_block.difficulty, candidate_block.nonce,
-                                      candidate_block.timestamp, candidate_block.tx_set)
-
+                                      candidate_block.merkle_root, candidate_block.difficulty, candidate_block.timestamp,
+                                      candidate_block.nonce, candidate_block.tx_set)
                 Block.insert_blockchain(candidate_block.block_index, candidate_block.block_hash, candidate_block.previous_block,
-                                      candidate_block.merkle_root, candidate_block.difficulty, candidate_block.nonce,
-                                      candidate_block.timestamp, candidate_block.tx_set)
+                                      candidate_block.merkle_root, candidate_block.difficulty, candidate_block.timestamp,
+                                      candidate_block.nonce, candidate_block.tx_set)
 
                 print('successfully mined new block#' + str(Block._BlockHeight))
 
@@ -76,7 +75,7 @@ class Mining(object):
         start = int(time.time())
         while(Mining._MiningFlag):
             keccak_hash = keccak.new(digest_bits=256)
-            current_time = time.time()
+            current_time = int(time.time())
             SumString = blockData + str(nonce) + str(current_time)
             elaped_time = int(current_time - start)
 
@@ -85,7 +84,7 @@ class Mining(object):
                 print('target nonce :' + str(nonce))
                 print('elapsed time: '+ str(elaped_time))
 
-                return (nonce,current_time)
+                return (nonce, current_time)
             nonce += 1
 
         return (False,0)

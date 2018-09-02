@@ -77,12 +77,10 @@ class Block(object):
             newtx.in_num = tx.in_num
             newvin = []
             for vin in tx.vin:
-                #vin.unlock = base64.b64encode(vin.unlock).decode('utf-16')
                 newvin.append(json.dumps(Vin(0, 0).__dict__))
             newtx.out_num = tx.out_num
             newvout = []
             for vout in tx.vout:
-                #vout.lock = base64.b64decode(vout.lock).decode('utf-16')
                 newvout.append(json.dumps(Vout(0, 0).__dict__))
             newtx.vin = newvin
             newtx.vout = newvout
