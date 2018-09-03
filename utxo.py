@@ -5,6 +5,7 @@ import plyvel
 
 
 class UTXO(object):
+
     def __init__(self, txOutid, index, address, amount):
         # Key = txOutid(in byte) + index.to_bytes(1, byteorder="little")
         self.txOutid = txOutid                  # string
@@ -22,6 +23,8 @@ UTXO.address => Vout.lock
 sig_bytes = base64.b64decode(sig_str)
 '''
 
+# UTXOset Class
+########################################################################################################################
 class UTXOset(object):
     # class variables
     _UTXOset = 0

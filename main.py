@@ -6,19 +6,22 @@ from utxo import UTXOset
 
 
 def main():
-    # init
+    # init Block UTXO set Transction
+    ####################################################################################################################
     Block.initialize()
     UTXOset.initialize()
     Transaction.initialize()
 
-    # key generation
+    # Key generation
+    ####################################################################################################################
     privateKey = Key().keyPairGenerate()
     print('My public key :')
     print(bytes(bytearray(privateKey.pubkey.serialize(compressed=False))).hex())
     print('My private key :')
     print(bytes(bytearray(privateKey.private_key)).hex())
 
-    # command line interface
+    # Command line interface
+    ####################################################################################################################
     interface = Interface()
     interface.cmdloop()
 
