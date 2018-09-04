@@ -2,7 +2,7 @@ import base64
 import time
 
 from Crypto.Hash import keccak
-from blkutils import get_difficulty, getLatestBlock, get_candidateblock
+from blkutils import get_difficulty, getLatestBlock, get_candidateblock, Block_Validation
 from block import Block
 from key import Key
 from transaction import Transaction
@@ -33,6 +33,8 @@ class Mining(object):
         ################################################################################################################
         while Mining._MiningFlag:
 
+            previous_block = getLatestBlock()
+            #print("Ming part ##########################################################################")
             target_diff = get_difficulty(Block._BlockHeight,
                                          getLatestBlock().difficulty)
 
@@ -40,8 +42,11 @@ class Mining(object):
 
             candidate_block = get_candidateblock()
 
-            blockData = str(candidate_block.previous_block) + str(candidate_block.merkle_root) + str(target_diff)
+            blockData = str(candidate_block.previous_block) + \
+                        str(candidate_block.merkle_root) + \
+                        str(target_diff)
 
+            #print("proofofowrk part ##########################################################################")
             (targetNonce, time) = Mining.proofofwork(blockData, target_diff)
 
             if targetNonce == False:
@@ -78,6 +83,20 @@ class Mining(object):
                                         candidate_block.tx_set)
 
                 print('successfully mined new block#' + str(Block._BlockHeight))
+                if candidate_block.block_index != 0:
+                    is_valid_flag = Block_Validation(candidate_block.block_index,
+                                        candidate_block.block_hash,
+                                        candidate_block.previous_block,
+                                        candidate_block.merkle_root,
+                                        candidate_block.difficulty,
+                                        candidate_block.timestamp,
+                                        candidate_block.nonce,
+                                        candidate_block.tx_set,
+                                        previous_block.difficulty)
+                    if is_valid_flag == True :
+                        print("True")
+                    if is_valid_flag == False :
+                        print("False")
 
             # Add to UTXOsets and myUTXOsets(for coinbase transaction only)
             ############################################################################################################
@@ -103,6 +122,10 @@ class Mining(object):
 
 
     # Proof of work
+    """
+    parameter: blockData, targetValue
+    return: nonce, current_time
+    """
     ####################################################################################################################
     @classmethod
     def proofofwork(cls, blockData, targetValue):
@@ -111,6 +134,7 @@ class Mining(object):
         start = int(time.time())
 
         while(Mining._MiningFlag):
+
             keccak_hash = keccak.new(digest_bits=256)
             current_time = int(time.time())
 
