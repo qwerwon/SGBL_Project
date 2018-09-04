@@ -30,6 +30,7 @@ class UTXOset(object):
     _UTXOset = 0
     _myUTXOset = 0
 
+    ####################################################################################################################
     @classmethod
     def initialize(cls):
         cls. _UTXOset = plyvel.DB('./db/UTXOset/', create_if_missing=True)
