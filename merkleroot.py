@@ -2,6 +2,8 @@ from merkletools import MerkleTools
 
 def create_merkle_root(tx_set):
     # Merkle root 생성
+
+
     mt = MerkleTools(hash_type='sha256')
 
     for tx in tx_set:

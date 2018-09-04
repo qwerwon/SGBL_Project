@@ -170,9 +170,11 @@ class Mining(object):
     #Method that caculates the vout's values of currenctBlock
     ####################################################################################################################
     def Calculate_curBlock(cls):
-        pass
-        #total_val=0
-        #for tx in tx_set:
-        #    tx_vout=tx.vout
-        #    for i in range(0,len(tx_vout)):
-        #        total_val+=tx_vout.value
+        
+        total_val=0
+        for tx in tx_set:
+            tx_vout=tx.vout
+            for i in range(0,len(tx_vout)):
+                total_val+=tx_vout.value
+        return total_val
+
