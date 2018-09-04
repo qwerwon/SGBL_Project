@@ -8,13 +8,11 @@ from transaction import Transaction, Vin, Vout
 
 class Block(object):
     # Class variables
-    ####################################################################################################################
     _BlockChain = []
     _BlockHeight = 0
     _raw_block = 0
 
     # Block class init
-    ####################################################################################################################
     def __init__(self, block_index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
         # Key = str(index).encode()
         self.block_index = block_index          # int
@@ -28,7 +26,6 @@ class Block(object):
 
 
     # Get Block Info from db
-    ####################################################################################################################
     @classmethod
     def initialize(cls):
         blk_height = 0
@@ -66,14 +63,13 @@ class Block(object):
             cls.insert_blockchain(0, '0', '0', '0', difficulty, int(time.time()), 0, [])
 
     # Insert Block to db
-    #####################################################################################################################
     @classmethod
-    def Insert_RawBlock(cls, index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
+    def Insert_RawBlock(cls, block_index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
         """
         Key of DB       : str(index).encode()
 
         Args:
-            index           : int
+            block_index     : int
             block_hash      : string
             previous_block  : string
             merkle_root     : string
@@ -83,44 +79,11 @@ class Block(object):
             tx_set          : list[Transaction()]
         """
 
-        newtx_set = []
-        # Convert tx for insert db
-        ################################################################################################################
-        for tx in tx_set:
-
-            newtx = Transaction(0, 0, 0, 0, 0)
-            newtx.tx_id = base64.b64encode(tx.tx_id).decode('utf-8')
-            newtx.in_num = tx.in_num
-            newvin = []
-
-            for vin in tx.vin:
-                newvin.append(json.dumps(Vin(0, 0).__dict__))
-
-            newtx.out_num = tx.out_num
-            newvout = []
-
-            for vout in tx.vout:
-                newvout.append(json.dumps(Vout(0, 0).__dict__))
-
-            newtx.vin = newvin
-            newtx.vout = newvout
-            newtx_set.append(json.dumps(newtx.__dict__))
-
-        block_data = {"index": index,
-                      "block_hash": block_hash,
-                      "previous_block": previous_block,
-                      "merkle_root": merkle_root,
-                      "difficulty": difficulty,
-                      "timestamp": timestamp,
-                      "nonce": nonce,
-                      "tx_set": json.dumps(newtx_set)}
-
-        block_data_en = json.dumps(block_data)
-
-        cls._raw_block.put(str(index).encode(), block_data_en.encode())
+        blk_data = Block(block_index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set).to_dict()
+        block_data_en = json.dumps(blk_data).encode()
+        cls._raw_block.put(str(block_index).encode(), block_data_en)
 
     # Pop block from DB
-    ####################################################################################################################
     @classmethod
     def Pop_RawBlock(cls, index):
         """
@@ -134,9 +97,8 @@ class Block(object):
         # Require some operations handling _BlockHeight and _Blockchain
 
     # Search block from DB
-    ####################################################################################################################
     @classmethod
-    def search_RawBlock(cls, index):
+    def get_RawBlock(cls, index):
         """
         Key of DB       : str(index).encode()
 
@@ -147,29 +109,15 @@ class Block(object):
             Block()
         """
 
-        result = cls._raw_block.get(str(index).encode(), default=None)
+        result = Block._raw_block.get(str(index).encode(), default=None)
 
         if result is None:
             return False
         else:
-            block_data = json.loads(cls._raw_block.get(str(index).encode(), default=None))
-            tmptx_set = json.loads(block_data["tx_set"])
-            tx_set = []
-
-            for i in range(0, len(tmptx_set)):
-                tx_set.append(tmptx_set[i])
-
-            return Block(index,
-                         block_data["block_hash"],
-                         block_data["previous_block"],
-                         block_data["merkle_root"],
-                         block_data["difficulty"],
-                         block_data["timestamp"],
-                         block_data["nonce"],
-                         tx_set)
+            data_json = json.loads(result)
+            return Block(0, '0', '0', '0', 0, 0, 0, []).from_dict(data_json)
 
     # Insert block into blockchain
-    ####################################################################################################################
     @classmethod
     def insert_blockchain(cls, index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
         """
@@ -197,9 +145,17 @@ class Block(object):
                   tx_set))
 
         cls._BlockHeight += 1
-        ################################################################################################################
 
-        # Is is right?
         if cls._BlockHeight > 10:
             del cls._BlockChain[0]
+
+    def to_dict(self):
+        return {'block_index': self.block_index, 'block_hash': self.block_hash, 'previous_block': self.previous_block,
+                'merkle_root': self.merkle_root, 'difficulty': self.difficulty, 'timestamp': self.timestamp,
+                'nonce': self.nonce, 'tx_set': [item.to_dict() for item in self.tx_set]}
+
+    def from_dict(self, data_json):
+        return Block(data_json["block_index"], data_json["block_hash"], data_json["previous_block"],
+                     data_json["merkle_root"], data_json["difficulty"], data_json["timestamp"],
+                     data_json["nonce"], [Transaction(0, 0, 0, 0, 0).from_dict(item) for item in data_json["tx_set"]])
 

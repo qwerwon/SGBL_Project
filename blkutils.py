@@ -1,13 +1,15 @@
-from block import Block
-from transaction import Transaction
-from merkleroot import create_merkle_root
-from txutils import generate_coinbase, isValid
-
-from Crypto.Hash import keccak ## add import
+import json
 import time
 
+from Crypto.Hash import keccak
 
-# Method that calculates the vout's values
+from block import Block
+from transaction import Transaction, Vin, Vout
+from txutils import generate_coinbase
+from utxo import UTXOset
+
+
+# Calculates the vout's values
 def Calculate_block_vouts(self, tx_id):
 
     for i in range(1,Block._BlockHeight+1):
@@ -17,10 +19,9 @@ def Calculate_block_vouts(self, tx_id):
             index=i
             break
 
-
-    #if there is key-value data in db
+    # if there is key-value data in db
     total_val=0
-    tmpbl_Data=json.loads(RawBlock._raw_block.get(str(index).encode()),default=None)
+    tmpbl_Data=json.loads(Block._raw_block.get(str(index).encode()),default=None)
     tmptx_set=json.loads(tmpbl_Data["tx_set"])
     for i in range(0,len(tmptx_set)):
         tmptx_set_el=json.loads(tmptx_set[i])
@@ -41,14 +42,6 @@ def getLatestBlock():
 
 
 def get_difficulty(index, prev_diff):
-
-    '''
-    print("Get Difficulty")
-    print(str(index))
-    print(str(prev_diff))
-    print("End set difficulty")
-    '''
-
     if index > 6:
         if index > 9:
             elapsed = Block._BlockChain[9].timestamp - Block._BlockChain[3].timestamp
@@ -67,30 +60,25 @@ def get_candidateblock():
     tx_set = []
     total_fee = 12.5
     
-    Block_Size=4
-    i=0
-    # get tx_set from MemPool greedy
-    for key , value in Transaction._MemoryPool.iterator():
-        tx_val = json.loads(value)
-        txid=tx_val["tx_id"]
-        tx_set.append(txid)
-        i=i+1
+    Block_Size = 10
+    i = 0
+    # get tx_set from MemPool
+    for key, value in Transaction._MemoryPool.iterator():
+        tx = Transaction.get_MemoryPool(key)
+        tx_set.append(tx)
+        i += 1
         if i == Block_Size-1:
             break
-    output_comm=0
+
+    # calculate total commission of tx_set(total_fee)
+    output_comm = Calculate_curBlock(tx_set)
     input_comm=0
 
     for tx in tx_set:
-        output_comm += Caculate_curBlock(tx)
-        input_comm += Calculate_mem_vouts(tx) + Calculate_block_vouts(tx)
+        input_comm += Calculate_mem_vouts(tx)
 
-    commission=input_comm=output_comm
+    commission = input_comm - output_comm
     total_fee += commission
-
-      
-
-    # calculate total commission of tx_set(total_fee)
-    # Transaction priority required
 
     coinbase = generate_coinbase(total_fee)
     tx_set.insert(0, coinbase)
@@ -103,29 +91,56 @@ def get_candidateblock():
 
 def create_merkle_root(tx_set):
     num=len(tx_set)
-    relist=[]
-    if num==1:
+    relist = []
+    if num == 1:
         return tx_set[0]
-    i=0
-    if num %2 ==1:
-        tx_set[num]=tx_set[num-1]
-        num=num+1
-    keccak_hash=keccak.new(digest_bits=256)
+    i = 0
+    if num % 2 == 1:
+        tx_set[num] = tx_set[num-1]
+        num = num+1
+    keccak_hash = keccak.new(digest_bits=256)
 
     while True:
         keccak_hash.update(tx_set[i].encode('ascii'))
-        tmp1=keccak_hash.hexdigest()
+        tmp1 = keccak_hash.hexdigest()
         keccak_hash.update(tx_set[i+1].encode('ascii'))
-        tmp2=keccak_hash.hexdigest()
+        tmp2 = keccak_hash.hexdigest()
 
         keccak_hash.update((tmp1+tmp2).encode('ascii'))
         relist.append(keccak_hash.hexigest())
         
-        i=i+2
+        i = i+2
         if i >= num:
             break
 
     create_merkle_root(relist)
+
+
+# Not fundamental method for Block class
+def Calculate_curBlock(tx_set):
+    total_val = 0
+    for tx in tx_set:
+        tx_vout = tx.vout
+        for i in range(0, len(tx_vout)):
+            total_val += tx_vout.value
+    return total_val
+
+
+# using vin's tx_id, find this transaction and add all the values of its vout
+def Calculate_mem_vouts(tx):
+    """
+
+    :param tx       : Transaction()
+    :return:        : Commission of tx
+    """
+    total_val=0
+    for input in tx.vin:
+        result = UTXOset.get_UTXO(input.txOutid, input.index)
+        if result is False: # Invalid transaction included
+            continue
+        total_val += result.amount
+
+    return total_val
 
 # Require block fork management methods
 
