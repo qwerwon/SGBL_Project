@@ -166,9 +166,8 @@ def generate_coinbase(total_fee):
     tx_id = keccak_hash.hexdigest().encode()
     return Transaction(tx_id, in_num, vin, out_num, vout)
 
-"""    
 # using vin's tx_id, find this transaction and add all the values of its vout
-def Calculate_mem(self, tx_id):
+def Calculate_mem_vouts(self, tx_id):
     total_val=0
     if MemoryPool._MemoryPool.get(tx_id, default=None) is None:
         return 0
@@ -179,4 +178,3 @@ def Calculate_mem(self, tx_id):
             tmpvout_el = json.loads(tmpvout[i])
             total_val += float(tmpvout_el["value"])
         return total_val
-"""
