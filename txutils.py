@@ -8,6 +8,7 @@ from transaction import Transaction, Vin, Vout
 from utxo import UTXOset, UTXO
 
 
+
 # Generate a transaction from command line
 def generate_transaction(receiver, amount, commission):
     publicKey = Key._publicKey
@@ -52,7 +53,8 @@ def generate_transaction(receiver, amount, commission):
         in_counter += 1
 
         # Generate signatures
-        unlockSig = privateKey.generate_sign(output.txOutid)
+        #여기 수정, Key의 메소드임 generate_sign은.
+        unlockSig = Key.generate_sign(privateKey,output.txOutid)
         unlock = privateKey.ecdsa_serialize(unlockSig)
         vin.append(Vin(output.txOutid, output.index, unlock))
 
@@ -61,6 +63,7 @@ def generate_transaction(receiver, amount, commission):
     change = total - commission - amount
     if change > 0:
         vout.append(Vout(change, publicKey_ser))
+
 
     # Generate tx_id
     SumString = str(in_counter)
@@ -73,30 +76,87 @@ def generate_transaction(receiver, amount, commission):
     keccak_hash.update(SumString.encode('ascii'))  # keccak_hash == tx_id of current transaction
 
     # Add to UTXOset and myUTXOset
-    address = base64.b64encode(receiver).decode('utf-8')
-    UTXOset.Insert_UTXO(keccak_hash.hexdigest().encode(), 0, address, float(amount))
+
+    UTXOset.Insert_UTXO(keccak_hash.hexdigest().encode(), 0, receiver, float(amount))
+
 
     if (change > 0):
         address = base64.b64encode(publicKey_ser).decode('utf-8')
-        UTXOset.Insert_UTXO(keccak_hash.hexdigest().encode(), 1, address, float(amount))
-        UTXOset.Insert_myUTXO(keccak_hash.hexdigest().encode(), 1, address, float(amount))
+        UTXOset.Insert_UTXO(keccak_hash.hexdigest().encode(), 1, receiver, float(amount))
+        UTXOset.Insert_myUTXO(keccak_hash.hexdigest().encode(), 1, receiver, float(amount))
 
     # Delete from UTXOset and myUTXOset
-    for otuput in tmpUTXO:
+    for output in tmpUTXO:
         UTXOset.Pop_UTXO(output.txOutid, output.index)
         UTXOset.Pop_myUTXO(output.txOutid, output.index)
 
+    #지금 여기문제임!!!
     # Add to memoryPool
     Transaction.Insert_MemoryPool(keccak_hash.hexdigest().encode(), in_counter, vin, out_counter, vout)
+
+    print("\n\n\n103\n\n\n")
 
     return True
 
 
 def isValid(transaction):
+"""김동환 하는중.
+    #1.타입 및 format 체크
+    for input in transaction.vin:
+        if( type(input.tx_id) != type("str")):
+            return False
+        if( type(input.index) != type(2)):
+            return False
+        if(type(input.unlock)!= type(b"23")):
+            return False
+
+    for output in transaction.vout:
+        if( type(output.value) != type(2.3)):
+            return False
+        if(type(output.lock) != type(b"12")):
+            return False
+    #####
+
     for output in transaction.vout:
         if (output.value < 0):
             print("Negative output value")
             return False
+
+    #2.출력값이 비어있지 않아야 한다. 만약 입력값이 비어있으면 코인베이스인지 확인한다.
+    #코인 베이스일 경우 100개의 block interval이 지나야 사용할 수 있도록 한다.
+    if( len(transaction.vout) == 0):
+        return  False
+    if( len(transaction.vin) == 0 ):
+        if( transaction.out_num != 1):
+            return False
+    #2. ??? 어떻게 100개 블록 생성된 다음에 coinbase가 사용되게 하지?
+
+    #4.해당 input의 unlock(서명)이 대응하는 publickey를 이용해서 복호화 가능한지 확인
+    from secp256k1prp import PrivateKey
+    if( Key.verify( PrivateKey().ecdsa_deserialize(transaction.vout.lock) ) == False):
+        return False
+
+    #5. input의 총합이 output의 총합보다 크거나 같아야함
+    #== Check if sum of input values are less than sum of outputs
+    input_sum =0
+    for input in transaction.vin:
+        for tx in Transaction._MemoryPool:
+            if(input.tx_id == tx.tx_id):
+                input_sum += tx.vout.value
+    output_sum =0
+    for output in transaction.vout:
+        output_sum += output.value
+
+    if( input_sum < output_sum):
+        return False
+
+    #6. input이 이미 사용된 input인지 memorypool에서 확인한다
+    for input in transaction.vin:
+        for tx in Transaction._MemoryPool:
+            if( input.tx_id == tx.vin.tx_id):
+                return False
+"""
+
 
     # Check if tx_id is valid
     SumString = str(transaction.in_num)
@@ -138,7 +198,7 @@ def isValid(transaction):
         if (input.index < 0):
             return False
 
-    # Check if sum of input values are less than sum of outputs
+
 
     print("Valid transaction")
     return True
