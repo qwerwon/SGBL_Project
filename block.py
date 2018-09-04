@@ -6,7 +6,6 @@ import plyvel
 
 from transaction import Transaction, Vin, Vout
 
-
 class Block(object):
     # Class variables
     ####################################################################################################################
@@ -199,6 +198,7 @@ class Block(object):
 
         cls._BlockHeight += 1
         ################################################################################################################
+
         # Is is right?
         if cls._BlockHeight > 10:
             del cls._BlockChain[0]
