@@ -1,9 +1,11 @@
 import cmd
 import os
+
+from block import Block
 from command import Command
 from transaction import Transaction
 from utxo import UTXOset
-from blockchain import Blockchain
+
 
 class Interface(cmd.Cmd):
 
@@ -52,7 +54,7 @@ class Interface(cmd.Cmd):
         UTXOset._UTXOset.close()
         UTXOset._myUTXOset.close()
         Transaction._MemoryPool.close()
-        Blockchain._RawBlock.close()
+        Block._raw_block.close()
         os._exit(0)
 
     def do_help(self, _):
