@@ -1,5 +1,5 @@
 import json
-
+import base64
 import plyvel
 
 # vin class
@@ -62,6 +62,8 @@ class Transaction(object):
         # Convert vin and vout for store
         ################################################################################################################
         for vin_el in vin:
+            #json.dump()사용하면 딕셔너리를 json문자열로 바꾼다.
+            #추가로 말하자면 dict의 value도 전부 byte이면 안된다.
             newVin.append(json.dumps(vin_el.__dict__))
 
         for vout_el in vout:
@@ -74,7 +76,7 @@ class Transaction(object):
 
         mempool_en = json.dumps(mempool)
 
-        cls._MemooryPool.put(tx_id, mempool_en.encode())
+        cls._MemoryPool.put(tx_id, mempool_en.encode())
 
     # Pop transaction from DB
     ####################################################################################################################
