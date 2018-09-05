@@ -2,10 +2,10 @@ import json
 import multiprocessing
 import socket
 import threading
-
+import base64
 from mining import Mining
 from peer import Peer
-from transaction import Transaction
+from txutils import generate_transaction
 
 
 class Command(object):
@@ -40,7 +40,7 @@ class Command(object):
             print('Mine failed')
         return result
         '''
-        miningThread = threading.Thread(target=Mining().mineStart)
+        miningThread = threading.Thread(target=Mining.mineStart)
         miningThread.start()
 
     def stop(self):
@@ -48,12 +48,12 @@ class Command(object):
         print('Stop Mining.\n')
 
     def newTx(self):
-        receiver = input('Address of receiver : ')
-        receiver = bytes.fromhex(receiver)
+        receiver = input('Address of receiver : ')  #type(receiver) : string
+        receiver = base64.b64decode(receiver)
 
         amount = float(input('BTC : '))
         commission = float(input('Commission : '))
-        Transaction(0, 0, [], 0, []).generate(receiver, amount, commission)
+        generate_transaction(receiver, amount, commission)
 
     def get_chain(self, host, port):
         message = {'type': 'SHOW'}
