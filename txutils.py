@@ -1,6 +1,7 @@
 import base64
 import json
 
+from secp256k1prp import PrivateKey
 from Crypto.Hash import keccak
 
 from key import Key
@@ -75,7 +76,6 @@ def generate_transaction(receiver, amount, commission):
     if change > 0:
         vout.append(Vout(change, base64.b64encode(publicKey_ser).decode('utf-8')))
 
-
     # Generate tx_id
     SumString = str(in_counter)
     for input in vin:
@@ -86,21 +86,6 @@ def generate_transaction(receiver, amount, commission):
     keccak_hash = keccak.new(digest_bits=256)
     keccak_hash.update(SumString.encode('ascii'))  # keccak_hash == tx_id of current transaction
 
-    # Add to UTXOset and myUTXOset
-
-    UTXOset.Insert_UTXO(keccak_hash.hexdigest().encode(), 0, receiver, float(amount))
-
-
-    if (change > 0):
-        address = base64.b64encode(publicKey_ser).decode('utf-8')
-        UTXOset.Insert_UTXO(keccak_hash.hexdigest().encode(), 1, receiver, float(amount))
-        UTXOset.Insert_myUTXO(keccak_hash.hexdigest().encode(), 1, receiver, float(amount))
-
-    # Delete from UTXOset and myUTXOset
-    for output in tmpUTXO:
-        UTXOset.Pop_UTXO(output.txOutid, output.index)
-        UTXOset.Pop_myUTXO(output.txOutid, output.index)
-
     # Add to memoryPool
     Transaction.Insert_MemoryPool(keccak_hash.hexdigest().encode(), in_counter, vin, out_counter, vout)
 
@@ -108,63 +93,88 @@ def generate_transaction(receiver, amount, commission):
 
 
 def isValid(transaction):
-    #1.타입 및 format 체크
+    # Type check for elements
+    check_flag = True
+    if type(transaction.tx_id) is not bytes or \
+        type(transaction.in_num) is not int or \
+        type(transaction.out_num) is not int:
+        check_flag = False
+
     for input in transaction.vin:
-        if( type(input.tx_id) != type("str")):
-            return False
-        if( type(input.index) != type(2)):
-            return False
-        if(type(input.unlock)!= type(b"23")):
-            return False
+        if type(input.tx_id) is not str:
+            check_flag = False
+            break
+        if type(input.index is not int):
+            check_flag = False
+            break
+        if type(input.unlock) is not bytes:
+            check_flag = False
+            break
 
     for output in transaction.vout:
-        if( type(output.value) != type(2.3)):
-            return False
-        if(type(output.lock) != type(b"12")):
-            return False
-    #####
+        if type(output.value) is not float:
+            check_flag = False
+            break
+        if type(output.lock) is not bytes:
+            check_flag = False
+            break
 
+    if check_flag is False:
+        print('Transaction type error')
+        return False
+
+    # Check if there is any negative value
     for output in transaction.vout:
         if (output.value < 0):
             print("Negative output value")
             return False
 
-    #2.출력값이 비어있지 않아야 한다. 만약 입력값이 비어있으면 코인베이스인지 확인한다.
-    #코인 베이스일 경우 100개의 block interval이 지나야 사용할 수 있도록 한다.
-    if( len(transaction.vout) == 0):
-        return  False
-    if( len(transaction.vin) == 0 ):
-        if( transaction.out_num != 1):
-            return False
-    #2. ??? 어떻게 100개 블록 생성된 다음에 coinbase가 사용되게 하지?
-
-    #4.해당 input의 unlock(서명)이 대응하는 publickey를 이용해서 복호화 가능한지 확인
-    from secp256k1prp import PrivateKey
-    if( Key.verify( PrivateKey().ecdsa_deserialize(transaction.vout.lock) ) == False):
+    # Check if output is empty
+    if len(transaction.vout) == 0:
+        print('Output is empty')
         return False
 
-    #5. input의 총합이 output의 총합보다 크거나 같아야함
-    #== Check if sum of input values are less than sum of outputs
-    input_sum =0
-    for input in transaction.vin:
-        for key, value in UTXOset._myUTXOset.iterator():
-            d_value = json.loads(value)
-            if(input.tx_id == d_value["tx_id"]):
-                input_sum += tx.vout.value
+    # Check if input is empty
+    # Coinbase transaction limit are not implemneted
+    if len(transaction.vin) == 0 :
+        if transaction.out_num != 1:
+            print('Input is empty')
+            return False
+        else:
+            pass
 
+    # Check if signature(unlock script) of input is valid
+    if Key.verify(PrivateKey().ecdsa_deserialize(transaction.vout.lock)) is False:
+        print('Invalid unlock script')
+        return False
+
+    # Check if inputs of transactions are unspent
+    # Calculate total input value
+    input_sum = 0
+    for tmp in transaction.vin:
+        # Check if remains on UTXOset
+        result = UTXOset.get_UTXO(tmp.tx_id, tmp.index)
+        if result is False:
+            print('Not exist in UTXOset')
+            return False
+        # Check if arlready spent in MemoryPool
+        for key, value in Transaction._MemoryPool.iterator():
+            tx = Transaction.get_MemoryPool(key)
+            for vin in tx.vin:
+                if vin.tx_id == tmp.tx_id and vin.index == tmp.index:
+                    print('It already spent')
+                    return False
+        input_sum += result.amount
+
+    # Calculate total output value
     output_sum =0
     for output in transaction.vout:
         output_sum += output.value
 
-    if( input_sum < output_sum):
+    # Check if total input is less than total output
+    if input_sum < output_sum:
+        print('Total input < total output')
         return False
-
-    #6. input이 이미 사용된 input인지 memorypool에서 확인한다
-    for input in transaction.vin:
-        for key, value in UTXOset._myUTXOset.iterator():
-            d_value = json.loads(value)
-            if( input.tx_id == d_value["tx_id"] ):
-                return False
 
     # Check if tx_id is valid
     SumString = str(transaction.in_num)
@@ -174,38 +184,15 @@ def isValid(transaction):
     for output in transaction.vout:
         SumString = SumString + str(output.value) + str(output.lock)
     keccak_hash = keccak.new(digest_bits=256)
-    keccak_hash.update(SumString.encode('ascii'))  # keccak_hash == tx_id of current transaction
+    keccak_hash.update(SumString.encode('ascii'))
 
     if keccak_hash.hexdigest().encode() != transaction.tx_id:
         print("Hash does not match")
         return False
 
-    outSum = 0
-    inSum = 0
-    for output in transaction.vout:
-        outSum += output.value
-    if outSum < 0 or outSum > 21000000:
+    if output_sum < 0 or output_sum > 21000000:
         print("Sum of output is out of range")
         return False
-
-    # Check if inputs are valid
-    for input in transaction.vin:
-
-        # Check if inputs exist in UTXOset
-        tmp = UTXOset._UTXOset.get(input.tx_id, default=False)
-        if (tmp == False or json.loads(tmp)["index"] != input.index):
-            print("Does not exist in UTXOset")
-            return False
-
-        # 해당 input의 unlock sign을 대응하는 output의 lock으로 복호화 가능한지 확인
-        # sig_des = PrivateKey().ecdsa_deserialize(input.unlock)
-        # Search rawBlock and transaction pool that match with input.txid and input.index
-        # verify = vout.lock.ecdsa_verify(bytes(bytearray.fromhex(txOutid)),sig_des)
-
-        # index가 음수인지만 확인
-        if (input.index < 0):
-            return False
-
 
     print("Valid transaction")
     return True
@@ -232,5 +219,3 @@ def generate_coinbase(total_fee):
     keccak_hash.update(SumString.encode('ascii'))
     tx_id = keccak_hash.hexdigest().encode()
     return Transaction(tx_id, in_num, vin, out_num, vout)
-
-      

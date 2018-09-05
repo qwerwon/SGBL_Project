@@ -117,6 +117,12 @@ class UTXOset(object):
 
     @classmethod
     def get_myUTXO(cls, txOutid, index):
+        """
+
+        :param txOutid  : bytes
+        :param index    : int
+        :return         : UTXO
+        """
         key = txOutid + index.to_bytes(1, byteorder="little")
 
         result = cls._myUTXOset.get(key, default=None)

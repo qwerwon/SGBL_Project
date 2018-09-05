@@ -23,9 +23,16 @@ class Key(PrivateKey):
 
     def generate_sign(self, msg):
         #256bit로 digest해야 한답니다 == 256bit로 맞춰야 된답니다.
-        return self.ecdsa_sign(msg, raw=False,digest=hashlib.sha256)
+        return self.ecdsa_sign(msg, raw=False, digest=hashlib.sha256)
 
     def verify(self, sig, key, msg):
+        """
+
+        :param sig: Signature object of package secp256k1prp
+        :param key: secp256klrpr.PublicKey
+        :param msg: string
+        :return:
+        """
         #자료형: msg: string
         #자료형: key: secp256klrpr.PublicKey
         #자료형: sig: _cffi_backend.CDataOwn  <??type으로 찾은거라...객체인듯요>
