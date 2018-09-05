@@ -79,6 +79,7 @@ class Interface(cmd.Cmd):
         print('mine <port> <data> \t\t Mine a new block Eg: mine hello')
         
         print('stop  \t\t Stop mining block Eg: stop')
+        print('pendingTransaction \t\t Get all transactions in MemoryPool')
 
         print('newTransaction \t\t Generate new Transaction.')
         print('searchTransaction \t\t Search Transaction by tx_id')
