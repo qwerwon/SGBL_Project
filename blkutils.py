@@ -1,4 +1,3 @@
-import json
 import time
 
 from Crypto.Hash import keccak
@@ -7,31 +6,6 @@ from block import Block
 from transaction import Transaction, Vin, Vout
 from txutils import generate_coinbase
 from utxo import UTXOset
-
-
-# Calculates the vout's values
-def Calculate_block_vouts(self, tx_id):
-
-    for i in range(1,Block._BlockHeight+1):
-        if Block._raw_block.get(str(i).encode(),default=None) is None:
-            return 0;
-        else:
-            index=i
-            break
-
-    # if there is key-value data in db
-    total_val=0
-    tmpbl_Data=json.loads(Block._raw_block.get(str(index).encode()),default=None)
-    tmptx_set=json.loads(tmpbl_Data["tx_set"])
-    for i in range(0,len(tmptx_set)):
-        tmptx_set_el=json.loads(tmptx_set[i])
-        if tmptx_set_el.tx_id == tx_id:
-            tmptx_vout=tmptx_set_el.vout
-            break
-    for i in range(0,len(tmptx_vout)):
-        total_val += tmptx_vout.value
-    
-    return total_val
 
 
 def getLatestBlock():
@@ -73,9 +47,8 @@ def get_candidateblock():
     # calculate total commission of tx_set(total_fee)
     output_comm = Calculate_curBlock(tx_set)
     input_comm=0
-
     for tx in tx_set:
-        input_comm += Calculate_mem_vouts(tx)
+        input_comm += Calculate_utxo_vouts(tx)
 
     commission = input_comm - output_comm
     total_fee += commission
@@ -83,14 +56,15 @@ def get_candidateblock():
     coinbase = generate_coinbase(total_fee)
     tx_set.insert(0, coinbase)
 
+    # Error here~~~~~~~~~~~~~~~~
     merkle_root = create_merkle_root(tx_set)
     difficulty = get_difficulty(Block._BlockHeight, previous_block.difficulty)
-
+    print(block_index, previous_block.block_hash, merkle_root, difficulty, tx_set)
     return Block(block_index, '0', previous_block.block_hash, merkle_root, difficulty, 0, 0, tx_set)
 
 
 def create_merkle_root(tx_set):
-    num=len(tx_set)
+    num = len(tx_set)
     relist = []
     if num == 1:
         return tx_set[0]
@@ -127,7 +101,7 @@ def Calculate_curBlock(tx_set):
 
 
 # using vin's tx_id, find this transaction and add all the values of its vout
-def Calculate_mem_vouts(tx):
+def Calculate_utxo_vouts(tx):
     """
 
     :param tx       : Transaction()
@@ -145,11 +119,11 @@ def Calculate_mem_vouts(tx):
 # Require block fork management methods
 
 # Block validation
-def Block_Validation(index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set, prev_diff):
+def Block_Validation(block):
     """
        Key of DB       : str(index).encode()
         Args:
-        index           : int
+        block_index           : int
         block_hash      : string
         previous_block  : string
         merkle_root     : string
@@ -159,66 +133,67 @@ def Block_Validation(index, block_hash, previous_block, merkle_root, difficulty,
         tx_set          : list[Transaction()]
         """
     # Block Format check
-    if index == None or \
-            block_hash == None or \
-            previous_block == None or \
-            merkle_root == None or \
-            difficulty == None or \
-            timestamp == None or \
-            nonce == None or \
-            tx_set == None:
-        print("Format Error")
+    if type(block.block_index) is not int or \
+            type(block.block_hash) is not str or \
+            type(block.previous_block) is not str or \
+            type(block.merkle_root) is not str or \
+            type(block.difficulty) is not int or \
+            type(block.timestamp) is not int or \
+            type(block.nonce) is not int or \
+            type(block.tx_set) is not list:
+        print("Block type error")
         return False
 
     # Block Difficulty check
-    tmp_diff = get_difficulty(index, prev_diff)
-    if tmp_diff != difficulty :
+    prev_diff = None
+    for tmp_block in Block._BlockChain:
+        if tmp_block.block_idex == block.block_index-1:
+            prev_diff = tmp_block.difficulty
+    if prev_diff is None:
+        print('Invalid block index')
+        return False
+    tmp_diff = get_difficulty(block.block_index, prev_diff)
+    if tmp_diff != block.difficulty:
         print("Difficulty Value")
-        '''
-        print(str(index))
-        print(str(tmp_diff))
-        print(str(difficulty))
-        '''
         return False
 
     # Nonce value check
-    hash_input = str(previous_block) + \
-                str(merkle_root) + \
-                str(difficulty) + \
-                str(nonce)
+    hash_input = str(block.previous_block) + \
+                str(block.merkle_root) + \
+                str(block.difficulty) + \
+                str(block.nonce)
 
     keccak_hash = keccak.new(digest_bits=256)
     keccak_hash.update(hash_input.encode('ascii'))
 
-    if block_hash != keccak_hash.hexdigest():
-        print("Nonce value")
+    if block.block_hash != keccak_hash.hexdigest():
+        print("Invalid block hash")
         return False
 
-    # 2 hours timestamp
+    # Within 2 hours -> 10 min
     current_time = int(time.time())
-    elapsed_time = int(current_time - timestamp)
-    if elapsed_time > 7200 :
-        print("Timestamp")
+    elapsed_time = int(current_time - block.timestamp)
+    if elapsed_time > 600:
+        print("Old block")
         return False
 
     # Is it coinbase transaction?
-    coinbase_tx = tx_set[0]
-    if coinbase_tx.in_num != 0 :
-        print("Coinbase transaction")
+    coinbase_tx = block.tx_set[0]
+    if coinbase_tx.in_num != 0:
+        print("Coinbase transaction error")
         return False
 
-    # Is it all transaction are right?
     # transaction valid is not make
-    """
-    for tx in tx_set:
-        if isValid(tx) != True :
-            print("Transaction right")
+    for tx in block.tx_set:
+        if Transaction.isValid(tx) == False :
+            print("Invalid transaction included")
             return False
-    """
-    max_num = 5
+
+    max_num = 10
     # length of list
-    if len(tx_set) > max_num :
+    if len(block.tx_set) > max_num :
         print("Tx num")
         return False
 
+    print('Valid block')
     return True

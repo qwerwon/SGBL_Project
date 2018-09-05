@@ -38,6 +38,8 @@ class Mining(object):
             print('target difficulty :', target_diff)
 
             candidate_block = get_candidateblock()
+            #print(candidate_block.block_index, candidate_block.block_hash, candidate_block.previous_block, candidate_block.merkle_root,
+            #      candidate_block.difficulty)
 
             blockData = str(candidate_block.previous_block) + \
                         str(candidate_block.merkle_root) + \
