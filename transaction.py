@@ -1,33 +1,43 @@
 import json
 import base64
+
 import plyvel
 
+
 # vin class
-########################################################################################################################
-class Vin:
+class Vin(object):
     def __init__(self, tx_id, index, unlock):
         self.tx_id = tx_id                      # string
         self.index = index                      # int
         self.unlock = unlock                    # bytes => Privatekey.ecdsa_deserialize(unlock)로 디코딩
 
+    def to_dict(self):
+        return {'tx_id': self.tx_id, 'index': self.index, 'unlock': base64.b64encode(self.unlock).decode('utf-8')}
+
+    def from_dict(self, data_json):
+        return Vin(data_json["tx_id"], data_json["index"], base64.b64decode(data_json["unlock"]))
+
 
 # Vout class
-########################################################################################################################
-class Vout:
+class Vout(object):
     def __init__(self, value, lock):
         self.value = value                      # float
         self.lock = lock                        # bytes => PublicKey(pub, raw=True)로 디코딩
 
+    def to_dict(self):
+        return {'value': self.value, 'lock': base64.b64encode(self.lock).decode('utf-8')}
+
+    def from_dict(self, data_json):
+        return Vout(data_json["value"], base64.b64decode(data_json["lock"]))
+
 
 # Transaction class
-########################################################################################################################
 class Transaction(object):
 
     # class variables
     _MemoryPool = 0
 
     # init
-    ####################################################################################################################
     def __init__(self, tx_id, in_num, vin, out_num, vout):
         # Key = tx_id
         self.tx_id = tx_id          # bytes
@@ -37,14 +47,11 @@ class Transaction(object):
         self.vout = vout            # list[Vout]
 
     # Make db for store pending transaction
-    ####################################################################################################################
     @classmethod
     def initialize(cls):
         cls._MemoryPool = plyvel.DB('./db/MemoryPool', create_if_missing=True)
 
-
     # Insert transaction to DB
-    ####################################################################################################################
     @classmethod
     def Insert_MemoryPool(cls, tx_id, in_counter, vin, out_counter, vout):
         """
@@ -56,30 +63,12 @@ class Transaction(object):
             vout        : list[Vout]
         """
 
-        newVin = []
-        newVout = []
+        tx_data = Transaction(tx_id, in_counter, vin, out_counter, vout).to_dict()
+        tx_data_en = json.dumps(tx_data).encode()
 
-        # Convert vin and vout for store
-        ################################################################################################################
-        for vin_el in vin:
-            #json.dump()사용하면 딕셔너리를 json문자열로 바꾼다.
-            #추가로 말하자면 dict의 value도 전부 byte이면 안된다.
-            newVin.append(json.dumps(vin_el.__dict__))
-
-        for vout_el in vout:
-            newVout.append(json.dumps(vout_el.__dict__))
-
-        mempool = {"in_num": in_counter,
-                   "vin": json.dumps(newVin),
-                   "out_num": out_counter,
-                   "vout": json.dumps(newVout)}
-
-        mempool_en = json.dumps(mempool)
-
-        cls._MemoryPool.put(tx_id, mempool_en.encode())
+        cls._MemoryPool.put(tx_id, tx_data_en)
 
     # Pop transaction from DB
-    ####################################################################################################################
     @classmethod
     def Pop_MemoryPool(cls, tx_id):
         """
@@ -88,3 +77,29 @@ class Transaction(object):
         """
 
         cls._MemoryPool.delete(tx_id, sync=True)
+
+    @classmethod
+    def get_MemoryPool(cls, tx_id):
+        """
+
+        :param tx_id:
+        :return:
+            Transaction(tx_id, in_num, [Vin()], out_num, [Vout()])
+        """
+
+        result = Transaction._MemoryPool.get(tx_id, default=None)
+
+        if result is None:
+            return False
+        else:
+            data_json = json.loads(result)
+            return Transaction(b'0', 0, [], 0, []).from_dict(data_json)
+
+    def to_dict(self):
+        return {'tx_id': base64.b64encode(self.tx_id).decode('utf-8'), 'in_num': self.in_num,
+                'vin': [item.to_dict() for item in self.vin], 'out_num': self.out_num, 'vout': [item.to_dict() for item in self.vout]}
+
+    def from_dict(self, data_json):
+        return Transaction(base64.b64decode(data_json["tx_id"]), data_json["in_num"],
+                           [Vin(0, 0, 0).from_dict(item) for item in data_json["vin"]], data_json["out_num"],
+                           [Vout(0, 0).from_dict(item) for item in data_json["vout"]])

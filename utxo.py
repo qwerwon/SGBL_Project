@@ -24,7 +24,6 @@ sig_bytes = base64.b64decode(sig_str)
 '''
 
 # UTXOset Class
-########################################################################################################################
 class UTXOset(object):
     # class variables
     _UTXOset = 0
@@ -49,8 +48,7 @@ class UTXOset(object):
 
         key = txOutid + index.to_bytes(1, byteorder="little")
         txOutid_str = base64.b64encode(txOutid).decode('utf-8')
-        address_str = base64.b64encode(address).decode('utf-8')
-        utxo={'txOutid':txOutid_str, 'index': index, 'address': address_str, 'amount': amount}
+        utxo={'txOutid':txOutid_str, 'index': index, 'address': address, 'amount': amount}
         utxo_en=json.dumps(utxo)
         cls._UTXOset.put(key, utxo_en.encode())
 
@@ -68,6 +66,25 @@ class UTXOset(object):
         cls._UTXOset.delete(key, sync=True)
 
     @classmethod
+    def get_UTXO(cls, txOutid, index):
+        """
+
+        :param txOutid  : byte
+        :param index    : int
+        :return         : False or UTXO
+        """
+        key = txOutid + index.to_bytes(1, byteorder="little")
+
+        result = cls._UTXOset.get(key, default=None)
+
+        if result is None:
+            return False
+
+        else:
+            data_json = json.loads(result)
+            return UTXO(txOutid, index, data_json['address'], data_json['amount'])
+
+    @classmethod
     def Insert_myUTXO(cls, txOutid, index, address, amount):
         """
         Key of DB       : txOutid + index.to_bytes(1, byteorder="little")
@@ -81,8 +98,7 @@ class UTXOset(object):
 
         key = txOutid + index.to_bytes(1, byteorder="little")
         txOutid_str = base64.b64encode(txOutid).decode('utf-8')
-        address_str = base64.b64encode(address).decode('utf-8')
-        myutxo={'txOutid':txOutid_str, 'index': index, 'address': address_str, 'amount': amount}
+        myutxo={'txOutid':txOutid_str, 'index': index, 'address': address, 'amount': amount}
         myutxo_en=json.dumps(myutxo)
         cls._myUTXOset.put(key, myutxo_en.encode())
 
@@ -98,3 +114,15 @@ class UTXOset(object):
 
         key = txOutid + index.to_bytes(1, byteorder="little")
         cls._myUTXOset.delete(key, sync=True)
+
+    @classmethod
+    def get_myUTXO(cls, txOutid, index):
+        key = txOutid + index.to_bytes(1, byteorder="little")
+
+        result = cls._myUTXOset.get(key, default=None)
+
+        if result is None:
+            return False
+        else:
+            data_json = json.loads(result)
+            return UTXO(txOutid, index, data_json['address'], data_json['amount'])

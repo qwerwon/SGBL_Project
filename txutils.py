@@ -8,7 +8,6 @@ from transaction import Transaction, Vin, Vout
 from utxo import UTXOset, UTXO
 
 
-
 # Generate a transaction from command line
 def generate_transaction(receiver, amount, commission):
     publicKey = Key._publicKey
@@ -109,7 +108,6 @@ def generate_transaction(receiver, amount, commission):
 
 
 def isValid(transaction):
-
     #1.타입 및 format 체크
     for input in transaction.vin:
         if( type(input.tx_id) != type("str")):
@@ -168,8 +166,6 @@ def isValid(transaction):
             if( input.tx_id == d_value["tx_id"] ):
                 return False
 
-
-
     # Check if tx_id is valid
     SumString = str(transaction.in_num)
     for input in transaction.vin:
@@ -211,7 +207,6 @@ def isValid(transaction):
             return False
 
 
-
     print("Valid transaction")
     return True
 
@@ -238,17 +233,4 @@ def generate_coinbase(total_fee):
     tx_id = keccak_hash.hexdigest().encode()
     return Transaction(tx_id, in_num, vin, out_num, vout)
 
-"""    
-# using vin's tx_id, find this transaction and add all the values of its vout
-def Calculate_mem(self, tx_id):
-    total_val=0
-    if MemoryPool._MemoryPool.get(tx_id, default=None) is None:
-        return 0
-    else:
-        tmptx_Data = json.loads(MemoryPool._MemoryPool.get(tx_id, default=None))
-        tmpvout=json.loads(tmptx_Data["vout"])
-        for i in range(0,len(tmpvout)):
-            tmpvout_el = json.loads(tmpvout[i])
-            total_val += float(tmpvout_el["value"])
-        return total_val
-"""
+      
