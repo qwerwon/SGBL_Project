@@ -2,7 +2,7 @@ import json
 import multiprocessing
 import socket
 import threading
-
+import base64
 from mining import Mining
 from peer import Peer
 from txutils import generate_transaction
@@ -48,8 +48,8 @@ class Command(object):
         print('Stop Mining.\n')
 
     def newTx(self):
-        receiver = input('Address of receiver : ')
-        receiver = bytes.fromhex(receiver)
+        receiver = input('Address of receiver : ')  #type(receiver) : string
+        receiver = base64.b64decode(receiver)
 
         amount = float(input('BTC : '))
         commission = float(input('Commission : '))

@@ -1,19 +1,17 @@
+from block import Block
 from interface import Interface
 from key import Key
-from block import Block
 from transaction import Transaction
 from utxo import UTXOset
 
 
 def main():
     # init Block UTXO set Transction
-    ####################################################################################################################
     Block.initialize()
     UTXOset.initialize()
     Transaction.initialize()
 
     # Key generation
-    ####################################################################################################################
     privateKey = Key().keyPairGenerate()
     print('My public key :')
     print(bytes(bytearray(privateKey.pubkey.serialize(compressed=False))).hex())
@@ -21,7 +19,6 @@ def main():
     print(bytes(bytearray(privateKey.private_key)).hex())
 
     # Command line interface
-    ####################################################################################################################
     interface = Interface()
     interface.cmdloop()
 

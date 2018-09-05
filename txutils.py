@@ -8,7 +8,6 @@ from transaction import Transaction, Vin, Vout
 from utxo import UTXOset, UTXO
 
 
-
 # Generate a transaction from command line
 def generate_transaction(receiver, amount, commission):
     publicKey = Key._publicKey
@@ -56,13 +55,25 @@ def generate_transaction(receiver, amount, commission):
         #여기 수정, Key의 메소드임 generate_sign은.
         unlockSig = Key.generate_sign(privateKey,output.txOutid)
         unlock = privateKey.ecdsa_serialize(unlockSig)
-        vin.append(Vin(output.txOutid, output.index, unlock))
+
+        """"
+        type(output.txOutid)     #bytes->str
+        type(output.index)       #ints
+        type(unlock)             #bytes->str
+        """
+        vin.append(Vin(base64.b64encode(output.txOutid).decode('utf-8'), output.index, base64.b64encode(unlock).decode('utf-8')))
 
     # Generate outputs
-    vout.append(Vout(amount, receiver))
+
+    """
+    type(amount)  #float
+    type(receiver)  #bytes->str
+    type(publicKey_ser)  # bytes->str
+    """
+    vout.append(Vout(amount, base64.b64encode(receiver).decode('utf-8')))
     change = total - commission - amount
     if change > 0:
-        vout.append(Vout(change, publicKey_ser))
+        vout.append(Vout(change, base64.b64encode(publicKey_ser).decode('utf-8')))
 
 
     # Generate tx_id
@@ -90,17 +101,13 @@ def generate_transaction(receiver, amount, commission):
         UTXOset.Pop_UTXO(output.txOutid, output.index)
         UTXOset.Pop_myUTXO(output.txOutid, output.index)
 
-    #지금 여기문제임!!!
     # Add to memoryPool
     Transaction.Insert_MemoryPool(keccak_hash.hexdigest().encode(), in_counter, vin, out_counter, vout)
-
-    print("\n\n\n103\n\n\n")
 
     return True
 
 
 def isValid(transaction):
-"""김동환 하는중.
     #1.타입 및 format 체크
     for input in transaction.vin:
         if( type(input.tx_id) != type("str")):
@@ -140,9 +147,11 @@ def isValid(transaction):
     #== Check if sum of input values are less than sum of outputs
     input_sum =0
     for input in transaction.vin:
-        for tx in Transaction._MemoryPool:
-            if(input.tx_id == tx.tx_id):
+        for key, value in UTXOset._myUTXOset.iterator():
+            d_value = json.loads(value)
+            if(input.tx_id == d_value["tx_id"]):
                 input_sum += tx.vout.value
+
     output_sum =0
     for output in transaction.vout:
         output_sum += output.value
@@ -152,11 +161,10 @@ def isValid(transaction):
 
     #6. input이 이미 사용된 input인지 memorypool에서 확인한다
     for input in transaction.vin:
-        for tx in Transaction._MemoryPool:
-            if( input.tx_id == tx.vin.tx_id):
+        for key, value in UTXOset._myUTXOset.iterator():
+            d_value = json.loads(value)
+            if( input.tx_id == d_value["tx_id"] ):
                 return False
-"""
-
 
     # Check if tx_id is valid
     SumString = str(transaction.in_num)
@@ -199,7 +207,6 @@ def isValid(transaction):
             return False
 
 
-
     print("Valid transaction")
     return True
 
@@ -226,16 +233,4 @@ def generate_coinbase(total_fee):
     tx_id = keccak_hash.hexdigest().encode()
     return Transaction(tx_id, in_num, vin, out_num, vout)
 
-# using vin's tx_id, find this transaction and add all the values of its vout
-def Calculate_mem_vouts(self, tx_id):
-    total_val=0
-    if MemoryPool._MemoryPool.get(tx_id, default=None) is None:
-        return 0
-    else:
-        tmptx_Data = json.loads(MemoryPool._MemoryPool.get(tx_id, default=None))
-        tmpvout=json.loads(tmptx_Data["vout"])
-        for i in range(0,len(tmpvout)):
-            tmpvout_el = json.loads(tmpvout[i])
-            total_val += float(tmpvout_el["value"])
-        return total_val
       
