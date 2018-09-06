@@ -1,4 +1,5 @@
 import time
+import base64
 
 from Crypto.Hash import keccak
 
@@ -56,34 +57,39 @@ def get_candidateblock():
     coinbase = generate_coinbase(total_fee)
     tx_set.insert(0, coinbase)
 
-    # Error here~~~~~~~~~~~~~~~~
-    merkle_root = create_merkle_root(tx_set)
+    tx_id_set = []
+    for tx in tx_set:
+        tx_id_set.append(tx.tx_id)
+
+    merkle_root = create_merkle_root(tx_id_set)
+
     difficulty = get_difficulty(Block._BlockHeight, previous_block.difficulty)
-    print(block_index, previous_block.block_hash, merkle_root, difficulty, tx_set)
     return Block(block_index, '0', previous_block.block_hash, merkle_root, difficulty, 0, 0, tx_set)
 
 
-def create_merkle_root(tx_set):
-    num = len(tx_set)
+def create_merkle_root(tx_id_set):
+    num = len(tx_id_set)
     relist = []
     if num == 1:
-        return str(tx_set[0])
+        return str(tx_id_set[0])
     i = 0
     if num % 2 == 1:
-        tx_set[num] = tx_set[num-1]
+        tx_id_set[num] = tx_id_set[num-1]
         num = num+1
     keccak_hash = keccak.new(digest_bits=256)
 
     while True:
-        keccak_hash.update(tx_set[i].encode('ascii'))
+        keccak_hash.update(str(tx_id_set[i]).encode('ascii'))
         tmp1 = keccak_hash.hexdigest()
         tmp11 = str(tmp1)
-        keccak_hash.update(tx_set[i+1].encode('ascii'))
+        keccak_hash = keccak.new(digest_bits=256)
+        keccak_hash.update(str(tx_id_set[i+1]).encode('ascii'))
         tmp2 = keccak_hash.hexdigest()
         tmp22 = str(tmp2)
 
+        keccak_hash = keccak.new(digest_bits=256)
         keccak_hash.update((tmp11+tmp22).encode('ascii'))
-        relist.append(keccak_hash.hexigest())
+        relist.append(keccak_hash.hexdigest())
         
         i = i+2
         if i >= num:
@@ -96,9 +102,8 @@ def create_merkle_root(tx_set):
 def Calculate_curBlock(tx_set):
     total_val = 0
     for tx in tx_set:
-        tx_vout = tx.vout
-        for i in range(0, len(tx_vout)):
-            total_val += tx_vout.value
+        for out in tx.vout:
+            total_val += out.value
     return total_val
 
 
@@ -111,7 +116,8 @@ def Calculate_utxo_vouts(tx):
     """
     total_val=0
     for input in tx.vin:
-        result = UTXOset.get_UTXO(input.txOutid, input.index)
+        tmp_txOutid = base64.b64decode(input.tx_id)
+        result = UTXOset.get_UTXO(tmp_txOutid, input.index)
         if result is False: # Invalid transaction included
             continue
         total_val += result.amount

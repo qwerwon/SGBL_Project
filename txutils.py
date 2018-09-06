@@ -18,10 +18,13 @@ def generate_transaction(receiver, amount, commission):
 
     total = 0
     in_counter = 0
-    out_counter = 0
+    out_counter = 1
     vin = []
     vout = []
     tmpUTXO = []  # Temporary UTXOset for resulting transaction
+
+    for key, value in UTXOset._myUTXOset.iterator():
+        d_value = json.loads(value)
 
     # Check if amount or commission is negative
     if amount <= 0 or commission < 0:
@@ -53,7 +56,6 @@ def generate_transaction(receiver, amount, commission):
         in_counter += 1
 
         # Generate signatures
-        #여기 수정, Key의 메소드임 generate_sign은.
         unlockSig = Key.generate_sign(privateKey,output.txOutid)
         unlock = privateKey.ecdsa_serialize(unlockSig)
 
@@ -62,7 +64,8 @@ def generate_transaction(receiver, amount, commission):
         type(output.index)       #ints
         type(unlock)             #bytes->str
         """
-        vin.append(Vin(base64.b64encode(output.txOutid).decode('utf-8'), output.index, base64.b64encode(unlock).decode('utf-8')))
+        vin.append(Vin(base64.b64encode(output.txOutid).decode('utf-8'), output.index,
+                       unlock))
 
     # Generate outputs
 
@@ -71,10 +74,11 @@ def generate_transaction(receiver, amount, commission):
     type(receiver)  #bytes->str
     type(publicKey_ser)  # bytes->str
     """
-    vout.append(Vout(amount, base64.b64encode(receiver).decode('utf-8')))
+    vout.append(Vout(amount, receiver))
     change = total - commission - amount
     if change > 0:
-        vout.append(Vout(change, base64.b64encode(publicKey_ser).decode('utf-8')))
+        vout.append(Vout(change, publicKey_ser))
+        out_counter += 1
 
     # Generate tx_id
     SumString = str(in_counter)

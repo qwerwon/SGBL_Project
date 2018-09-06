@@ -1,5 +1,6 @@
 import base64
 import time
+import json
 
 from Crypto.Hash import keccak
 
@@ -32,18 +33,14 @@ class Mining(object):
         while Mining._MiningFlag:
 
             previous_block = getLatestBlock()
-            target_diff = get_difficulty(Block._BlockHeight,
-                                         getLatestBlock().difficulty)
-
-            print('target difficulty :', target_diff)
 
             candidate_block = get_candidateblock()
 
             blockData = str(candidate_block.previous_block) + \
                         str(candidate_block.merkle_root) + \
-                        str(target_diff)
+                        str(candidate_block.difficulty)
 
-            (targetNonce, time) = Mining.proofofwork(blockData, target_diff)
+            (targetNonce, time) = Mining.proofofwork(blockData, candidate_block.difficulty)
 
             if targetNonce == False:
                 print('Failed to get golden nonce')
@@ -54,7 +51,6 @@ class Mining(object):
                 keccak_hash.update(blockData.encode('ascii'))
 
                 candidate_block.block_hash = keccak_hash.hexdigest()
-                candidate_block.difficulty = target_diff
                 candidate_block.nonce = targetNonce
                 candidate_block.timestamp = time
 
@@ -106,14 +102,14 @@ class Mining(object):
                         address = base64.b64encode(vout.lock).decode('utf-8')
                     """
                     address = base64.b64encode(vout.lock).decode('utf-8')
-                    UTXOset.Insert_UTXO(tx.tx_id, index, address, vout.amount)
-                    index += 1
+                    UTXOset.Insert_UTXO(tx.tx_id, index, address, vout.value)
                     if vout.lock == publicKey_ser:
-                        UTXOset.Insert_UTXO(tx.tx_id, index, address, vout.amount)
+                        UTXOset.Insert_myUTXO(tx.tx_id, index, address, vout.value)
+                    index += 1
 
             # Delete from MemoryPool
             for tx in candidate_block.tx_set:
-                Transaction.Pop_MemoryPool(base64.b64decode(tx.tx_id))
+                Transaction.Pop_MemoryPool(tx.tx_id)
 
     # Proof of work
     """

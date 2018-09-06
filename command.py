@@ -50,7 +50,7 @@ class Command(object):
 
     def newTx(self):
         receiver = input('Address of receiver : ')  #type(receiver) : string
-        receiver = base64.b64decode(receiver)
+        receiver = receiver.encode('utf-8')
 
         amount = float(input('BTC : '))
         commission = float(input('Commission : '))
