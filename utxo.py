@@ -31,19 +31,26 @@ class UTXOset(object):
 
     @classmethod
     def initialize(cls):
+        """
+        Open and initialize Database of UTXOset and myUTXOset
+
+        """
+
         cls. _UTXOset = plyvel.DB('./db/UTXOset/', create_if_missing=True)
         cls. _myUTXOset = plyvel.DB('./db/myUTXOset/', create_if_missing=True)
 
     @classmethod
     def Insert_UTXO(cls, txOutid, index, address, amount):
         """
-        Key of DB       : txOutid + index.to_bytes(1, byteorder="little")
+        Insert UTXO into UTXO DB as
+            key         : txOutid(bytes) + index(bytes)
+            value       : {'txOutid': string, 'index': int, 'address': string, 'amount': float}
 
         Args:
             txOutid     : bytes
             index       : int
             address     : string
-            amount      : int
+            amount      : float
         """
 
         key = txOutid + index.to_bytes(1, byteorder="little")
@@ -55,7 +62,8 @@ class UTXOset(object):
     @classmethod
     def Pop_UTXO(cls, txOutid, index):
         """
-         Key of DB       : txOutid + index.to_bytes(1, byteorder="little")
+        Delete UTXO from UTXO
+            key         : txOutid(bytes) + index(bytes)
 
         Args:
             txOutid     : bytes
@@ -68,10 +76,15 @@ class UTXOset(object):
     @classmethod
     def get_UTXO(cls, txOutid, index):
         """
+        Fetch UTXO from UTXO DB
+            key         : txOutid(bytes) + index(bytes)
 
-        :param txOutid  : byte
-        :param index    : int
-        :return         : False or UTXO
+        Args:
+            txOutid     : bytes
+            index       : int
+
+        return:
+            UTXO object or False
         """
         key = txOutid + index.to_bytes(1, byteorder="little")
 
@@ -87,13 +100,15 @@ class UTXOset(object):
     @classmethod
     def Insert_myUTXO(cls, txOutid, index, address, amount):
         """
-        Key of DB       : txOutid + index.to_bytes(1, byteorder="little")
+        Insert UTXO into myUTXO DB as
+            key         : txOutid(bytes) + index(bytes)
+            value       : {'txOutid': string, 'index': int, 'address': string, 'amount': float}
 
         Args:
             txOutid     : bytes
             index       : int
             address     : string
-            amount      : int
+            amount      : float
         """
 
         key = txOutid + index.to_bytes(1, byteorder="little")
@@ -118,10 +133,15 @@ class UTXOset(object):
     @classmethod
     def get_myUTXO(cls, txOutid, index):
         """
+        Fetch UTXO from myUTXO DB
+            key         : txOutid(bytes) + index(bytes)
 
-        :param txOutid  : bytes
-        :param index    : int
-        :return         : UTXO
+        Args:
+            txOutid     : bytes
+            index       : int
+
+        return:
+            UTXO object or False
         """
         key = txOutid + index.to_bytes(1, byteorder="little")
 

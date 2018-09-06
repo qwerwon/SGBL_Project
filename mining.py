@@ -1,10 +1,9 @@
 import base64
 import time
-import json
 
 from Crypto.Hash import keccak
 
-from blkutils import get_difficulty, getLatestBlock, get_candidateblock, Block_Validation
+from blkutils import getLatestBlock, get_candidateblock
 from block import Block
 from key import Key
 from transaction import Transaction

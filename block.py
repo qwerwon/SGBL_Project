@@ -28,6 +28,10 @@ class Block(object):
     # Get Block Info from db
     @classmethod
     def initialize(cls):
+        """
+        Open and initialize Database of RawBlock
+        """
+
         blk_height = 0
         try:
             cls._raw_block = plyvel.DB('./db/RawBlock', create_if_missing=True, error_if_exists=False)
@@ -66,7 +70,10 @@ class Block(object):
     @classmethod
     def Insert_RawBlock(cls, block_index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
         """
-        Key of DB       : str(index).encode()
+        Insert Block into RawBlock DB as
+            key         : str(block_index).encode()(bytes)
+            value       : {'block_index': int, 'block_hash': string, 'previous_block': string, 'merkle_root': string,
+                           'difficulty': int, 'timestamp': int, 'nonce': int, 'tx_set': [Transaction().to_dict]}
 
         Args:
             block_index     : int
@@ -87,7 +94,8 @@ class Block(object):
     @classmethod
     def Pop_RawBlock(cls, index):
         """
-        Key of DB       : str(index).encode()
+        Delete Block from RawBlock DB
+        Key of DB       : str(block_index).encode()(bytes)
 
         Args:
             index           : int
@@ -100,13 +108,14 @@ class Block(object):
     @classmethod
     def get_RawBlock(cls, index):
         """
+        Fetch Block from RawBlock DB
         Key of DB       : str(index).encode()
 
         Args:
             index           : int
 
         Returns:
-            Block()
+            Block object or False
         """
 
         result = Block._raw_block.get(str(index).encode(), default=None)
@@ -121,7 +130,7 @@ class Block(object):
     @classmethod
     def insert_blockchain(cls, index, block_hash, previous_block, merkle_root, difficulty, timestamp, nonce, tx_set):
         """
-        Key of DB       : str(index).encode()
+        Insert Block into recent 10 block list
 
         Args:
             index           : int

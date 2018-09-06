@@ -4,7 +4,7 @@ import base64
 import plyvel
 
 
-# vin class
+# Vin class
 class Vin(object):
     def __init__(self, tx_id, index, unlock):
         self.tx_id = tx_id                      # string
@@ -49,18 +49,28 @@ class Transaction(object):
     # Make db for store pending transaction
     @classmethod
     def initialize(cls):
+        """
+        Open and initialize Database of MemoryPool
+
+        """
+
         cls._MemoryPool = plyvel.DB('./db/MemoryPool', create_if_missing=True)
 
     # Insert transaction to DB
     @classmethod
     def Insert_MemoryPool(cls, tx_id, in_counter, vin, out_counter, vout):
         """
+        Insert Transaction into MemoryPool DB as
+            key         : tx_id(bytes)
+            value       : {'tx_id': string, 'in_num': int, 'vin': [Vin().to_dict], 'out_num': int,
+                           'vout': [Vout().to_dict]}
+
         Args:
-            tx_id       : bytes(key of db)
-            in_counter  : int
-            vin         : list[Vin]
-            out_counter : int
-            vout        : list[Vout]
+            tx_id       : bytes
+            in_num      : int
+            vin         : list[Vin()]
+            out_num     : int
+            vout        : list[Vout()]
         """
 
         tx_data = Transaction(tx_id, in_counter, vin, out_counter, vout).to_dict()
@@ -72,6 +82,9 @@ class Transaction(object):
     @classmethod
     def Pop_MemoryPool(cls, tx_id):
         """
+        Delete Transaction from MemoryPool DB
+            key         : txOutid(bytes) + index(bytes)
+
         Args:
             tx_id       : bytes(key of db)
         """
@@ -81,10 +94,14 @@ class Transaction(object):
     @classmethod
     def get_MemoryPool(cls, tx_id):
         """
+        Fetch Transaction from MemoryPool DB
+            key         : tx_id(bytes)
 
-        :param tx_id:
-        :return:
-            Transaction(tx_id, in_num, [Vin()], out_num, [Vout()])
+        Args:
+            tx_id       : bytes(key of db)
+
+        return:
+            Transaction object or False
         """
 
         result = Transaction._MemoryPool.get(tx_id, default=None)

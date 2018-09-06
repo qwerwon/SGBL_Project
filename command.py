@@ -2,11 +2,11 @@ import json
 import multiprocessing
 import socket
 import threading
-import base64
+
 from mining import Mining
 from peer import Peer
-from txutils import generate_transaction
 from transaction import Transaction
+from txutils import generate_transaction
 
 
 class Command(object):
