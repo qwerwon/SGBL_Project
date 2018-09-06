@@ -57,6 +57,13 @@ class Interface(cmd.Cmd):
         Block._raw_block.close()
         os._exit(0)
 
+    def do_searchTransaction(self, txid):
+        self._command.get_Tx(txid)
+
+
+    def do_pendingTransaction(self, _):
+        self._command.getall_Mem()
+
     def do_help(self, _):
         print('\n')
         print('Commands:')
@@ -72,8 +79,10 @@ class Interface(cmd.Cmd):
         print('mine <port> <data> \t\t Mine a new block Eg: mine hello')
         
         print('stop  \t\t Stop mining block Eg: stop')
+        print('pendingTransaction \t\t Get all transactions in MemoryPool')
 
         print('newTransaction \t\t Generate new Transaction.')
+        print('searchTransaction \t\t Search Transaction by tx_id')
         print('show <port> \t\t\t Show blockchain of peer Eg: show 5000')
         print('\n')
 

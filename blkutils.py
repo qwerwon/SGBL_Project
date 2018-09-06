@@ -67,7 +67,7 @@ def create_merkle_root(tx_set):
     num = len(tx_set)
     relist = []
     if num == 1:
-        return tx_set[0]
+        return str(tx_set[0])
     i = 0
     if num % 2 == 1:
         tx_set[num] = tx_set[num-1]
@@ -77,10 +77,12 @@ def create_merkle_root(tx_set):
     while True:
         keccak_hash.update(tx_set[i].encode('ascii'))
         tmp1 = keccak_hash.hexdigest()
+        tmp11 = str(tmp1)
         keccak_hash.update(tx_set[i+1].encode('ascii'))
         tmp2 = keccak_hash.hexdigest()
+        tmp22 = str(tmp2)
 
-        keccak_hash.update((tmp1+tmp2).encode('ascii'))
+        keccak_hash.update((tmp11+tmp22).encode('ascii'))
         relist.append(keccak_hash.hexigest())
         
         i = i+2
