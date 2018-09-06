@@ -38,8 +38,6 @@ class Mining(object):
             print('target difficulty :', target_diff)
 
             candidate_block = get_candidateblock()
-            #print(candidate_block.block_index, candidate_block.block_hash, candidate_block.previous_block, candidate_block.merkle_root,
-            #      candidate_block.difficulty)
 
             blockData = str(candidate_block.previous_block) + \
                         str(candidate_block.merkle_root) + \
@@ -80,41 +78,42 @@ class Mining(object):
                                         candidate_block.tx_set)
 
                 print('successfully mined new block#' + str(Block._BlockHeight))
-                if candidate_block.block_index != 0:
-                    is_valid_flag = Block_Validation(candidate_block.block_index,
-                                        candidate_block.block_hash,
-                                        candidate_block.previous_block,
-                                        candidate_block.merkle_root,
-                                        candidate_block.difficulty,
-                                        candidate_block.timestamp,
-                                        candidate_block.nonce,
-                                        candidate_block.tx_set,
-                                        previous_block.difficulty)
-                    if is_valid_flag == True :
-                        print("True")
-                    if is_valid_flag == False :
-                        print("False")
 
-            # Add to UTXOsets and myUTXOsets(for coinbase transaction only)
-            coinbase = candidate_block.tx_set[0]
-            coinbase_data = coinbase.vout[0]
-            coinbase_tx_id = coinbase.tx_id
+            # Update UTXOsets and myUTXOsets
+            for tx in candidate_block.tx_set:
+                # Delete UTXO
+                for vin in tx.vin:
+                    """
+                        type(vin.tx_id)     : string
+                        type(UTXO.txOutid)  : bytes
+                        string to bytes conversion required
+                        tx_id_byte = base64.b64decode(vin.tx_id)
+                    """
+                    tx_id_byte = base64.b64decode(vin.tx_id)
+                    result = UTXOset.get_myUTXO(tx_id_byte, vin.index)
+                    UTXOset.Pop_UTXO(tx_id_byte, vin.index)
 
-            UTXOset.Insert_UTXO(coinbase_tx_id,
-                                0,
-                                coinbase_data.lock,
-                                coinbase_data.value)
+                    if result != False:
+                        UTXOset.Pop_myUTXO(tx_id_byte, vin.index)
 
-            UTXOset.Insert_myUTXO(coinbase_tx_id,
-                                  0,
-                                  coinbase_data.lock,
-                                  coinbase_data.value)
+                # Add UTXO
+                index = 0
+                for vout in tx.vout:
+                    """
+                        type(vout.lock)     : bytes
+                        type(UTXO.address)  : string
+                        bytes to string conversion required
+                        address = base64.b64encode(vout.lock).decode('utf-8')
+                    """
+                    address = base64.b64encode(vout.lock).decode('utf-8')
+                    UTXOset.Insert_UTXO(tx.tx_id, index, address, vout.amount)
+                    index += 1
+                    if vout.lock == publicKey_ser:
+                        UTXOset.Insert_UTXO(tx.tx_id, index, address, vout.amount)
 
             # Delete from MemoryPool
             for tx in candidate_block.tx_set:
-               Transaction.Pop_MemoryPool(base64.b64decode(tx.tx_id))
-
-
+                Transaction.Pop_MemoryPool(base64.b64decode(tx.tx_id))
 
     # Proof of work
     """
