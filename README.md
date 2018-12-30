@@ -1,26 +1,10 @@
-# Transaction Part
-<img src="https://user-images.githubusercontent.com/38277490/44906451-e2916080-ad4f-11e8-809a-f963283f8b9c.png" width = "65%">
+# Bitcoin-like Instructional Blockchain
+![1](https://user-images.githubusercontent.com/18026697/50545940-63ab2680-0c62-11e9-99cf-f9ee106cc712.png)
+Instructional blockchain develop project of SGBL
 
-# Block Part
-<img src="https://user-images.githubusercontent.com/38277490/44907091-d4dcda80-ad51-11e8-8a90-001dd719986d.png" width = "65%">
-<img src="https://user-images.githubusercontent.com/38277490/44907163-00f85b80-ad52-11e8-9984-64702b0c73cc.png" width = "65%">
+## Objective
+Our project is developing simple Bitcon-like(UTXO based) blockchain core including grading fucntion whether user implements blockchain's components correctly-*e.g.*,consensus protocol and block/transaction validation. Grading function is inspired by *[Pintos](https://web.stanford.edu/class/cs140/projects/pintos/pintos.html)*, which is simple operating system.
+*Fill in the blanks, simulate your own code, check the score, and modify it.*
 
-
-
-To Do List
-
-1. Msg handling
-2. Fork choice
-3. Re-organization
-4. Grading function
-
-When Block msg arrived:
-1. Call isValid
-2. Broadcast
-3. 현재 작업중인 candidate block을 파기하고 새로운 candidate block 생성
-4. memory pool/UTXOset 업데이트
-
-When Transaction msg arrived:
-1. Call isValid
-2. Broadcast
-3. memorypool 업데이트
+## Overview
+![instructional blockchain](https://user-images.githubusercontent.com/18026697/50546781-d4593f80-0c70-11e9-9aa2-94d5662f9b0a.png)
